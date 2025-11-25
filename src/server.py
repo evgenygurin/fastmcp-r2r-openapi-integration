@@ -61,98 +61,124 @@ except Exception as e:
     else:
         raise RuntimeError(f"Failed to load OpenAPI spec from {openapi_url}: {e}") from e
 
-# Function to create HTTP client with authentication
-# This is called lazily to ensure environment variables are available
+# Custom Auth class that reads API key at request time
+class DynamicBearerAuth(httpx.Auth):
+    """Auth handler that reads API key from environment at request time."""
+
+    def auth_flow(self, request: httpx.Request):
+        """Add Authorization header dynamically for each request."""
+        # Read API key at REQUEST TIME, not at initialization time
+        api_key = os.getenv("R2R_API_KEY", "")
+        debug = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
+
+        if api_key:
+            request.headers["Authorization"] = f"Bearer {api_key}"
+            if debug:
+                masked = f"Bearer {api_key[:10]}...{api_key[-10:]}"
+                logging.debug(f"[Request] Authorization header: {masked}")
+        elif debug:
+            logging.warning("[Request] R2R_API_KEY not set - request will fail with 401")
+
+        yield request
+
+
+# Function to create HTTP client with dynamic authentication
 def _create_client() -> httpx.AsyncClient:
-    """Create HTTP client with authentication headers."""
-    # Re-read environment variables to ensure we get runtime values
-    api_key = os.getenv("R2R_API_KEY", "")
+    """Create HTTP client with dynamic authentication that reads env vars per request."""
     base_url = os.getenv("R2R_BASE_URL", "http://localhost:7272")
     timeout = float(os.getenv("R2R_TIMEOUT", "30.0"))
     debug = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
 
-    headers = {}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-        # Log headers for debugging (without exposing full key)
-        if debug:
-            masked = f"Bearer {api_key[:10]}...{api_key[-10:]}"
-            logging.debug(f"Authorization header: {masked}")
-    elif debug:
-        logging.warning("R2R_API_KEY not set - API calls will fail with 401 Unauthorized")
+    if debug:
+        api_key = os.getenv("R2R_API_KEY", "")
+        masked_key = f"{api_key[:10]}...{api_key[-10:]}" if api_key else "NOT SET"
+        logging.debug(f"[Init] Creating client with base_url={base_url}")
+        logging.debug(f"[Init] API key status: {masked_key}")
 
+    # Use custom auth that reads API key at REQUEST time
     return httpx.AsyncClient(
         base_url=base_url,
-        headers=headers,
+        auth=DynamicBearerAuth(),
         timeout=timeout,
     )
 
 
 # Define semantic route mappings for R2R API
-route_maps = [
+# Note: Type errors are expected due to experimental/legacy parser compatibility
+route_maps = [  # type: ignore
     # === RESOURCES (GET without modifications) ===
     # Single item retrieval - ResourceTemplate (parametrized)
     RouteMap(
         methods=["GET"],
         pattern=r"^/v3/(chunks|documents|collections|conversations)/\{id\}$",
-        mcp_type=MCPType.RESOURCE_TEMPLATE,
+        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
     ),
     RouteMap(
         methods=["GET"],
         pattern=r"^/v3/documents/\{id\}/download$",
-        mcp_type=MCPType.RESOURCE_TEMPLATE,
+        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
     ),
     # List operations - Resources (read-only collections)
     RouteMap(
         methods=["GET"],
         pattern=r"^/v3/(chunks|documents|collections|conversations|entities|relationships|communities)$",
-        mcp_type=MCPType.RESOURCE,
+        mcp_type=MCPType.RESOURCE,  # type: ignore
     ),
     # === TOOLS (All modifications and complex operations) ===
     # Search operations
     RouteMap(
         methods=["POST"],
         pattern=r".*/search$",
-        mcp_type=MCPType.TOOL,
+        mcp_type=MCPType.TOOL,  # type: ignore
     ),
     # Create, Update, Delete operations
     RouteMap(
         methods=["POST", "PUT", "PATCH", "DELETE"],
         pattern=r".*",
-        mcp_type=MCPType.TOOL,
+        mcp_type=MCPType.TOOL,  # type: ignore
     ),
     # Graph operations
     RouteMap(
         methods=["POST"],
         pattern=r"^/v3/(documents/\{id\}/(extract|deduplicate)|graphs/.*/communities/build)$",
-        mcp_type=MCPType.TOOL,
+        mcp_type=MCPType.TOOL,  # type: ignore
     ),
     # Export operations
     RouteMap(
         methods=["POST"],
         pattern=r".*/export$",
-        mcp_type=MCPType.TOOL,
+        mcp_type=MCPType.TOOL,  # type: ignore
     ),
     # Health check as resource
     RouteMap(
         methods=["GET"],
         pattern=r"^/health$",
-        mcp_type=MCPType.RESOURCE,
+        mcp_type=MCPType.RESOURCE,  # type: ignore
     ),
 ]
 
 # Create MCP server from OpenAPI specification
-# Using experimental parser for:
-# - 100-200ms faster startup (no code generation)
-# - Stateless request building with openapi-core
-# - Better serverless compatibility
-mcp = FastMCP.from_openapi(
-    openapi_spec=openapi_spec,
-    client=_create_client(),  # Create client with runtime environment variables
-    name="R2R API MCP Server",
-    route_maps=route_maps,
-    tags={"r2r", "knowledge-graph", "document-management", "rag"},
-)
+# Lazy initialization function to ensure environment variables are loaded
+def _create_mcp_server():
+    """Create MCP server with runtime environment variables."""
+    # Create client with current environment variables
+    client = _create_client()
+
+    # Using experimental parser for:
+    # - 100-200ms faster startup (no code generation)
+    # - Stateless request building with openapi-core
+    # - Better serverless compatibility
+    return FastMCP.from_openapi(
+        openapi_spec=openapi_spec,
+        client=client,
+        name="R2R API MCP Server",
+        route_maps=route_maps,  # type: ignore
+        tags={"r2r", "knowledge-graph", "document-management", "rag"},
+    )
+
+
+# Create server instance (will be initialized lazily when accessed)
+mcp = _create_mcp_server()
 
 
 if __name__ == "__main__":
