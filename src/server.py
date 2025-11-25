@@ -10,10 +10,10 @@ from fastmcp import FastMCP
 # Use experimental OpenAPI parser for better performance and serverless compatibility
 # 100-200ms faster startup, stateless request building, better OpenAPI compliance
 try:
-    from fastmcp.experimental.server.openapi import MCPType, RouteMap
+    from fastmcp.experimental.server.openapi import MCPType, RouteMap  # type: ignore
 except ImportError:
     # Fallback to legacy parser if experimental not available
-    from fastmcp.server.openapi import MCPType, RouteMap
+    from fastmcp.server.openapi import MCPType, RouteMap  # type: ignore
 
 # Load environment variables from .env file (local development only)
 # In production (FastMCP Cloud), environment variables are set directly
