@@ -89,7 +89,7 @@ docker build -t r2r-mcp-server .
 
 # Запустить контейнер
 docker run -p 8000:8000 \
-  -e R2R_BASE_URL=https://api.136-119-36-216.nip.io \
+  -e R2R_BASE_URL=http://localhost:7272 \
   -e R2R_API_KEY=your_key \
   r2r-mcp-server
 ```
