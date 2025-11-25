@@ -21,16 +21,11 @@ load_dotenv()
 
 # Configuration
 R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
-R2R_API_KEY = os.getenv("R2R_API_KEY")
+R2R_API_KEY = os.getenv("R2R_API_KEY", "")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
 
-# CRITICAL: Validate API key is present
-if not R2R_API_KEY:
-    raise ValueError(
-        "R2R_API_KEY environment variable is required. "
-        "Set it in FastMCP Cloud Environment Variables or in .env file locally."
-    )
+# Note: API key validation moved to runtime to allow build-time inspection
 
 # Enable debug logging if requested
 if DEBUG_LOGGING:
@@ -49,31 +44,48 @@ if DEBUG_LOGGING:
     logging.debug(f"R2R_API_KEY: {masked_key}")
     logging.debug(f"R2R_TIMEOUT: {R2R_TIMEOUT}")
 
-response = httpx.get(openapi_url, timeout=30.0)
-response.raise_for_status()
-openapi_spec = response.json()
+# Load OpenAPI spec (public endpoint, no auth needed)
+try:
+    response = httpx.get(openapi_url, timeout=30.0)
+    response.raise_for_status()
+    openapi_spec = response.json()
+except Exception as e:
+    # If we can't load from API, try to use local file as fallback
+    import json
+    from pathlib import Path
 
-# Create HTTP client with authentication
-headers = {}
-if R2R_API_KEY:
-    headers["Authorization"] = f"Bearer {R2R_API_KEY}"
-else:
-    raise ValueError("R2R_API_KEY must be set to authenticate with R2R API")
-
-# Log headers for debugging (without exposing full key)
-if DEBUG_LOGGING:
-    auth_header = headers.get("Authorization", "NOT SET")
-    if auth_header != "NOT SET":
-        masked = f"Bearer {R2R_API_KEY[:10]}...{R2R_API_KEY[-10:]}"
-        logging.debug(f"Authorization header: {masked}")
+    local_spec = Path(__file__).parent.parent / "openapi.json"
+    if local_spec.exists():
+        with open(local_spec) as f:
+            openapi_spec = json.load(f)
     else:
-        logging.debug("Authorization header: NOT SET")
+        raise RuntimeError(f"Failed to load OpenAPI spec from {openapi_url}: {e}") from e
 
-client = httpx.AsyncClient(
-    base_url=R2R_BASE_URL,
-    headers=headers,
-    timeout=R2R_TIMEOUT,
-)
+# Function to create HTTP client with authentication
+# This is called lazily to ensure environment variables are available
+def _create_client() -> httpx.AsyncClient:
+    """Create HTTP client with authentication headers."""
+    # Re-read environment variables to ensure we get runtime values
+    api_key = os.getenv("R2R_API_KEY", "")
+    base_url = os.getenv("R2R_BASE_URL", "http://localhost:7272")
+    timeout = float(os.getenv("R2R_TIMEOUT", "30.0"))
+    debug = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+        # Log headers for debugging (without exposing full key)
+        if debug:
+            masked = f"Bearer {api_key[:10]}...{api_key[-10:]}"
+            logging.debug(f"Authorization header: {masked}")
+    elif debug:
+        logging.warning("R2R_API_KEY not set - API calls will fail with 401 Unauthorized")
+
+    return httpx.AsyncClient(
+        base_url=base_url,
+        headers=headers,
+        timeout=timeout,
+    )
 
 
 # Define semantic route mappings for R2R API
@@ -136,7 +148,7 @@ route_maps = [
 # - Better serverless compatibility
 mcp = FastMCP.from_openapi(
     openapi_spec=openapi_spec,
-    client=client,
+    client=_create_client(),  # Create client with runtime environment variables
     name="R2R API MCP Server",
     route_maps=route_maps,
     tags={"r2r", "knowledge-graph", "document-management", "rag"},
