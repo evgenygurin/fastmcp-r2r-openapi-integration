@@ -110,11 +110,33 @@ def _create_client() -> httpx.AsyncClient:
 # See: https://gofastmcp.com/integrations/openapi
 route_maps = [  # type: ignore
     # === SEMANTIC SEARCH & RAG (retrieval category) ===
+    # Covers: search, rag, agent, completion, embedding
     RouteMap(
         methods=["POST"],
-        pattern=r"/v3/retrieval/(search|rag|agent)",
+        pattern=r"/v3/retrieval/.*",
         mcp_type=MCPType.TOOL,  # type: ignore
         mcp_tags={"retrieval", "ai", "search"},
+    ),
+    # Document and chunk search
+    RouteMap(
+        methods=["POST"],
+        pattern=r"/v3/(documents|chunks)/search",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"search", "data"},
+    ),
+    # Export operations (CSV exports)
+    RouteMap(
+        methods=["POST"],
+        pattern=r".*/export",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"export", "data"},
+    ),
+    # Entity extraction and deduplication
+    RouteMap(
+        methods=["POST"],
+        pattern=r".*/extract|.*/deduplicate",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"knowledge-graph", "processing"},
     ),
     # === KNOWLEDGE GRAPH OPERATIONS ===
     RouteMap(
