@@ -7,14 +7,6 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 
-# Use experimental OpenAPI parser for better performance and serverless compatibility
-# 100-200ms faster startup, stateless request building, better OpenAPI compliance
-try:
-    from fastmcp.experimental.server.openapi import MCPType, RouteMap  # type: ignore
-except ImportError:
-    # Fallback to legacy parser if experimental not available
-    from fastmcp.server.openapi import MCPType, RouteMap  # type: ignore
-
 # Load environment variables from .env file (local development only)
 # In production (FastMCP Cloud), environment variables are set directly
 load_dotenv()
@@ -25,16 +17,12 @@ R2R_API_KEY = os.getenv("R2R_API_KEY", "")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
 
-# Note: API key validation moved to runtime to allow build-time inspection
-
 # Enable debug logging if requested
 if DEBUG_LOGGING:
     logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger("fastmcp.server.openapi").setLevel(logging.DEBUG)
-    logging.getLogger("fastmcp.experimental.server.openapi").setLevel(logging.DEBUG)
+    logging.getLogger("fastmcp").setLevel(logging.DEBUG)
 
 # Load OpenAPI specification from R2R API directly
-# This ensures we always have the latest API specification
 openapi_url = f"{R2R_BASE_URL}/openapi.json"
 
 # Log configuration for debugging (mask API key)
@@ -60,6 +48,7 @@ except Exception as e:
             openapi_spec = json.load(f)
     else:
         raise RuntimeError(f"Failed to load OpenAPI spec from {openapi_url}: {e}") from e
+
 
 # Custom Auth class that reads API key at request time
 class DynamicBearerAuth(httpx.Auth):
@@ -103,27 +92,6 @@ def _create_client() -> httpx.AsyncClient:
     )
 
 
-# Define semantic route mappings for R2R API
-# Based on analysis of 114 routes across 11 categories
-# IMPORTANT: FastMCP checks patterns in order - first match wins
-# More specific patterns MUST come before general ones
-# See: https://gofastmcp.com/integrations/openapi
-route_maps = [  # type: ignore
-    # GET requests with path parameters -> RESOURCE_TEMPLATE
-    RouteMap(
-        methods=["GET"],
-        pattern=r".*\{.*\}.*",
-        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
-    ),
-    # All other GET requests -> RESOURCE
-    RouteMap(
-        methods=["GET"],
-        pattern=r".*",
-        mcp_type=MCPType.RESOURCE,  # type: ignore
-    ),
-    # POST/PUT/PATCH/DELETE default to TOOL (implicit)
-]
-
 # Create MCP server from OpenAPI specification
 # Lazy initialization function to ensure environment variables are loaded
 def _create_mcp_server():
@@ -131,15 +99,12 @@ def _create_mcp_server():
     # Create client with current environment variables
     client = _create_client()
 
-    # Using experimental parser for:
-    # - 100-200ms faster startup (no code generation)
-    # - Stateless request building with openapi-core
-    # - Better serverless compatibility
+    # Simple configuration: let FastMCP auto-detect everything
+    # No route_maps = maximum endpoint coverage
     return FastMCP.from_openapi(
         openapi_spec=openapi_spec,
         client=client,
         name="R2R API MCP Server",
-        route_maps=route_maps,  # type: ignore
     )
 
 
