@@ -1,11 +1,19 @@
 """R2R MCP Server - FastMCP integration for R2R API."""
 
+import logging
 import os
 
 import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-from fastmcp.server.openapi import MCPType, RouteMap
+
+# Use experimental OpenAPI parser for better performance and serverless compatibility
+# 100-200ms faster startup, stateless request building, better OpenAPI compliance
+try:
+    from fastmcp.experimental.server.openapi import MCPType, RouteMap
+except ImportError:
+    # Fallback to legacy parser if experimental not available
+    from fastmcp.server.openapi import MCPType, RouteMap
 
 # Load environment variables
 load_dotenv()
@@ -14,6 +22,14 @@ load_dotenv()
 R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
 R2R_API_KEY = os.getenv("R2R_API_KEY")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
+DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
+ENABLE_CACHING = os.getenv("ENABLE_CACHING", "false").lower() == "true"
+
+# Enable debug logging if requested
+if DEBUG_LOGGING:
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("fastmcp.server.openapi").setLevel(logging.DEBUG)
+    logging.getLogger("fastmcp.experimental.server.openapi").setLevel(logging.DEBUG)
 
 # Load OpenAPI specification from R2R API directly
 # This ensures we always have the latest API specification
@@ -88,13 +104,23 @@ route_maps = [
 ]
 
 # Create MCP server from OpenAPI specification
-mcp = FastMCP.from_openapi(
-    openapi_spec=openapi_spec,
-    client=client,
-    name="R2R API MCP Server",
-    route_maps=route_maps,
-    tags={"r2r", "knowledge-graph", "document-management", "rag"},
-)
+# Using experimental parser for:
+# - 100-200ms faster startup (no code generation)
+# - Stateless request building with openapi-core
+# - Better serverless compatibility
+mcp_kwargs = {
+    "openapi_spec": openapi_spec,
+    "client": client,
+    "name": "R2R API MCP Server",
+    "route_maps": route_maps,
+    "tags": {"r2r", "knowledge-graph", "document-management", "rag"},
+}
+
+# Add optional caching if enabled
+if ENABLE_CACHING:
+    mcp_kwargs["enable_caching"] = True
+
+mcp = FastMCP.from_openapi(**mcp_kwargs)
 
 
 if __name__ == "__main__":

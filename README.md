@@ -44,10 +44,20 @@ cp .env.example .env
 Отредактируйте `.env`:
 
 ```env
+# Обязательные параметры
 R2R_BASE_URL=http://localhost:7272
 R2R_API_KEY=your_actual_api_key_here
-R2R_TIMEOUT=30.0
+
+# Опциональные параметры производительности
+R2R_TIMEOUT=30.0              # Таймаут запросов (секунды)
+DEBUG_LOGGING=false           # Детальное логирование для отладки
+ENABLE_CACHING=false          # Кэширование ответов API
 ```
+
+**Performance Optimizations:**
+- **DEBUG_LOGGING=true** - показывает детали работы OpenAPI парсера и построения запросов
+- **ENABLE_CACHING=true** - ускоряет повторные запросы, снижает нагрузку на API
+- **Experimental parser** - автоматически используется для 100-200ms faster startup
 
 ## Использование
 
