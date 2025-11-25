@@ -1,5 +1,10 @@
 # R2R MCP Server
 
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![FastMCP](https://img.shields.io/badge/FastMCP-2.13+-green.svg)](https://gofastmcp.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
 FastMCP-based Model Context Protocol (MCP) сервер для R2R API, обеспечивающий интеграцию с системами управления документами, графами знаний и RAG.
 
 ## Возможности
