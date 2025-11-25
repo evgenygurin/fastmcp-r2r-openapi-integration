@@ -1,16 +1,17 @@
-.PHONY: help install dev run run-http lint fix test update-spec clean
+.PHONY: help install dev run run-http run-streamable lint fix test update-spec clean
 
 help:
 	@echo "R2R MCP Server - Доступные команды:"
 	@echo ""
-	@echo "  make install      - Установка зависимостей"
-	@echo "  make dev          - Установка dev зависимостей"
-	@echo "  make run          - Запуск сервера (stdio)"
-	@echo "  make run-http     - Запуск HTTP сервера на :8000"
-	@echo "  make lint         - Проверка кода"
-	@echo "  make fix          - Автоисправление кода"
-	@echo "  make update-spec  - Обновить OpenAPI спецификацию"
-	@echo "  make clean        - Очистка временных файлов"
+	@echo "  make install         - Установка зависимостей"
+	@echo "  make dev             - Установка dev зависимостей"
+	@echo "  make run             - Запуск сервера (stdio для Claude Desktop)"
+	@echo "  make run-http        - Запуск HTTP сервера на 0.0.0.0:8000"
+	@echo "  make run-streamable  - Запуск Streamable HTTP на 0.0.0.0:8000 (рекомендуется)"
+	@echo "  make lint            - Проверка кода"
+	@echo "  make fix             - Автоисправление кода"
+	@echo "  make update-spec     - Обновить OpenAPI спецификацию"
+	@echo "  make clean           - Очистка временных файлов"
 
 install:
 	uv pip install -e .
@@ -22,7 +23,10 @@ run:
 	./start.sh
 
 run-http:
-	./start.sh http 8000
+	./start.sh http 0.0.0.0 8000
+
+run-streamable:
+	./start.sh streamable-http 0.0.0.0 8000
 
 lint:
 	uv run ruff check .

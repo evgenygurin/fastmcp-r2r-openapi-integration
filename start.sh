@@ -27,13 +27,18 @@ echo "   DEBUG_LOGGING: ${DEBUG_LOGGING:-false}"
 echo ""
 
 # Determine transport mode (default: stdio)
-TRANSPORT=${1:-stdio}
-PORT=${2:-8000}
+# Usage:
+#   ./start.sh                           # stdio mode (Claude Desktop)
+#   ./start.sh http                      # legacy HTTP on 0.0.0.0:8000
+#   ./start.sh streamable-http           # streamable HTTP on 0.0.0.0:8000 (recommended)
+#   ./start.sh streamable-http 127.0.0.1 9000  # custom host and port
 
-if [ "$TRANSPORT" = "http" ]; then
-    echo "🚀 Starting R2R MCP Server in HTTP mode on port ${PORT}..."
-    uv run python -m src.server http "$PORT"
+TRANSPORT=${1:-stdio}
+HOST=${2:-0.0.0.0}
+PORT=${3:-8000}
+
+if [ "$TRANSPORT" = "http" ] || [ "$TRANSPORT" = "streamable-http" ]; then
+    uv run python -m src.server "$TRANSPORT" "$HOST" "$PORT"
 else
-    echo "🚀 Starting R2R MCP Server in stdio mode..."
     uv run python -m src.server
 fi

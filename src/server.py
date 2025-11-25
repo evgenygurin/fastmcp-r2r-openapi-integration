@@ -110,12 +110,16 @@ def _create_client() -> httpx.AsyncClient:
 # See: https://gofastmcp.com/integrations/openapi
 route_maps = [  # type: ignore
     # === SEMANTIC SEARCH & RAG (retrieval category) ===
-    # Covers: search, rag, agent, completion, embedding
+    # /v3/retrieval/search - Vector & graph-based search (basic/advanced modes)
+    # /v3/retrieval/rag - RAG query combining search + LLM generation
+    # /v3/retrieval/agent - Conversational agent with RAG/Agentic modes
+    # /v3/retrieval/completion - Direct LLM completions for messages
+    # /v3/retrieval/embedding - Generate text embeddings
     RouteMap(
         methods=["POST"],
         pattern=r"/v3/retrieval/.*",
         mcp_type=MCPType.TOOL,  # type: ignore
-        mcp_tags={"retrieval", "ai", "search"},
+        mcp_tags={"retrieval", "ai", "search", "rag", "llm"},
     ),
     # Document and chunk search
     RouteMap(
@@ -269,11 +273,31 @@ mcp = _create_mcp_server()
 if __name__ == "__main__":
     import sys
 
-    # Support both stdio and HTTP transports
+    # Support multiple transports: stdio, http, streamable-http
+    # stdio - for Claude Desktop
+    # streamable-http - recommended for production (efficient bidirectional streaming)
+    # http - legacy HTTP transport
     transport = sys.argv[1] if len(sys.argv) > 1 else "stdio"
 
-    if transport == "http":
-        port = int(sys.argv[2]) if len(sys.argv) > 2 else 8000
-        mcp.run(transport="http", port=port)
+    if transport in ["http", "streamable-http"]:
+        # HTTP/Streamable HTTP transport
+        host = sys.argv[2] if len(sys.argv) > 2 else "0.0.0.0"
+        port = int(sys.argv[3]) if len(sys.argv) > 3 else 8000
+
+        print(f"🚀 Starting R2R MCP Server")
+        print(f"   Transport: {transport}")
+        print(f"   Host: {host}")
+        print(f"   Port: {port}")
+        print(f"   Endpoint: http://{host}:{port}/mcp")
+        print(f"   Health: http://{host}:{port}/health")
+        print()
+
+        mcp.run(
+            transport=transport,  # type: ignore
+            host=host,
+            port=port,
+            log_level="INFO",
+        )
     else:
+        # STDIO transport for Claude Desktop
         mcp.run(transport="stdio")
