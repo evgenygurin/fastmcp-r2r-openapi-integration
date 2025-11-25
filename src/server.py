@@ -15,7 +15,8 @@ except ImportError:
     # Fallback to legacy parser if experimental not available
     from fastmcp.server.openapi import MCPType, RouteMap
 
-# Load environment variables
+# Load environment variables from .env file (local development only)
+# In production (FastMCP Cloud), environment variables are set directly
 load_dotenv()
 
 # Configuration
@@ -23,6 +24,13 @@ R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
 R2R_API_KEY = os.getenv("R2R_API_KEY")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
+
+# CRITICAL: Validate API key is present
+if not R2R_API_KEY:
+    raise ValueError(
+        "R2R_API_KEY environment variable is required. "
+        "Set it in FastMCP Cloud Environment Variables or in .env file locally."
+    )
 
 # Enable debug logging if requested
 if DEBUG_LOGGING:
@@ -33,6 +41,14 @@ if DEBUG_LOGGING:
 # Load OpenAPI specification from R2R API directly
 # This ensures we always have the latest API specification
 openapi_url = f"{R2R_BASE_URL}/openapi.json"
+
+# Log configuration for debugging (mask API key)
+if DEBUG_LOGGING:
+    masked_key = f"{R2R_API_KEY[:10]}...{R2R_API_KEY[-10:]}" if R2R_API_KEY else "NOT SET"
+    logging.debug(f"R2R_BASE_URL: {R2R_BASE_URL}")
+    logging.debug(f"R2R_API_KEY: {masked_key}")
+    logging.debug(f"R2R_TIMEOUT: {R2R_TIMEOUT}")
+
 response = httpx.get(openapi_url, timeout=30.0)
 response.raise_for_status()
 openapi_spec = response.json()
@@ -41,6 +57,17 @@ openapi_spec = response.json()
 headers = {}
 if R2R_API_KEY:
     headers["Authorization"] = f"Bearer {R2R_API_KEY}"
+else:
+    raise ValueError("R2R_API_KEY must be set to authenticate with R2R API")
+
+# Log headers for debugging (without exposing full key)
+if DEBUG_LOGGING:
+    auth_header = headers.get("Authorization", "NOT SET")
+    if auth_header != "NOT SET":
+        masked = f"Bearer {R2R_API_KEY[:10]}...{R2R_API_KEY[-10:]}"
+        logging.debug(f"Authorization header: {masked}")
+    else:
+        logging.debug("Authorization header: NOT SET")
 
 client = httpx.AsyncClient(
     base_url=R2R_BASE_URL,

@@ -53,6 +53,20 @@ R2R_TIMEOUT=30.0              # Таймаут запросов (секунды)
 DEBUG_LOGGING=false           # Детальное логирование для отладки
 ```
 
+**ВАЖНО:** Формат API ключа в .env файле:
+```env
+# ✅ ПРАВИЛЬНО - без кавычек, без "Bearer"
+R2R_API_KEY=your_actual_api_key_here
+
+# ❌ НЕПРАВИЛЬНО - с кавычками
+R2R_API_KEY="your_actual_api_key_here"
+
+# ❌ НЕПРАВИЛЬНО - со словом Bearer
+R2R_API_KEY=Bearer your_actual_api_key_here
+```
+
+Код автоматически добавляет "Bearer " при формировании HTTP заголовка.
+
 **Performance Optimizations:**
 - **DEBUG_LOGGING=true** - показывает детали работы OpenAPI парсера и построения запросов
 - **Experimental parser** - автоматически используется для 100-200ms faster startup
@@ -71,13 +85,41 @@ DEBUG_LOGGING=false           # Детальное логирование для
 
 ### Запуск для Claude Desktop (stdio)
 
+**Рекомендуется через start.sh** (автоматически экспортирует переменные из .env):
+
 ```bash
+./start.sh
+# или
+make run
+```
+
+**Альтернативно** (требует ручного экспорта переменных):
+
+```bash
+# Экспортируем переменные из .env
+set -a && source .env && set +a
+
+# Запускаем сервер
 uv run python -m src.server
 ```
 
 ### Запуск HTTP сервера (для разработки)
 
+**Рекомендуется через start.sh**:
+
 ```bash
+./start.sh http 8000
+# или
+make run-http
+```
+
+**Альтернативно**:
+
+```bash
+# Экспортируем переменные из .env
+set -a && source .env && set +a
+
+# Запускаем HTTP сервер
 uv run python -m src.server http 8000
 ```
 

@@ -19,10 +19,10 @@ dev:
 	uv pip install -e ".[dev]"
 
 run:
-	uv run python -m src.server
+	./start.sh
 
 run-http:
-	uv run python -m src.server http 8000
+	./start.sh http 8000
 
 lint:
 	uv run ruff check .
