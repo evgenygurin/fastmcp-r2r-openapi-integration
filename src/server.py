@@ -23,7 +23,6 @@ R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
 R2R_API_KEY = os.getenv("R2R_API_KEY")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
-ENABLE_CACHING = os.getenv("ENABLE_CACHING", "false").lower() == "true"
 
 # Enable debug logging if requested
 if DEBUG_LOGGING:
@@ -108,19 +107,13 @@ route_maps = [
 # - 100-200ms faster startup (no code generation)
 # - Stateless request building with openapi-core
 # - Better serverless compatibility
-mcp_kwargs = {
-    "openapi_spec": openapi_spec,
-    "client": client,
-    "name": "R2R API MCP Server",
-    "route_maps": route_maps,
-    "tags": {"r2r", "knowledge-graph", "document-management", "rag"},
-}
-
-# Add optional caching if enabled
-if ENABLE_CACHING:
-    mcp_kwargs["enable_caching"] = True
-
-mcp = FastMCP.from_openapi(**mcp_kwargs)
+mcp = FastMCP.from_openapi(
+    openapi_spec=openapi_spec,
+    client=client,
+    name="R2R API MCP Server",
+    route_maps=route_maps,
+    tags={"r2r", "knowledge-graph", "document-management", "rag"},
+)
 
 
 if __name__ == "__main__":
