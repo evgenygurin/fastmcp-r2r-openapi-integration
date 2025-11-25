@@ -59,7 +59,7 @@ R2R_TIMEOUT=30.0
 2. **Environment Variables:** Добавьте ваши R2R креденшалы
 3. **Authentication:** Включите для безопасности
 
-📖 Подробная инструкция: [DEPLOYMENT.md](DEPLOYMENT.md)
+📖 Подробная инструкция: [DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ### Запуск для Claude Desktop (stdio)
 
