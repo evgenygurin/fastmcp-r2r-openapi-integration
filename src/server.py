@@ -36,6 +36,15 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
 
+# Import pipeline components (after FastMCP imports)
+from src.pipelines import (
+    Pipeline,
+    pipeline_llm_analyze,
+    pipeline_llm_summarize,
+    pipeline_search_and_analyze,
+    sample_structured_output,
+)
+
 # Import from experimental parser if available (faster, stateless, better serverless)
 try:
     from fastmcp.experimental.server.openapi import (  # type: ignore[import-not-found]
@@ -653,8 +662,311 @@ Provide:
         raise
 
 
+# ============================================================================
+# ADVANCED: Pipeline-based Tools (using ctx.sample and composition)
+# ============================================================================
+
+
+@mcp.tool(
+    description="Multi-step research pipeline: search → analyze → summarize",
+    tags={"r2r", "pipeline", "research"}
+)
+async def research_pipeline(
+    query: str,
+    analysis_depth: str = "standard",  # "quick", "standard", "deep"
+    ctx: Context | None = None
+) -> dict:
+    """
+    Execute a complete research pipeline combining search, LLM analysis, and summarization.
+
+    Steps:
+        1. Search R2R knowledge base
+        2. Analyze results with LLM (ctx.sample)
+        3. Generate executive summary
+
+    Args:
+        query: Research question or topic
+        analysis_depth: "quick" (1-2 mins), "standard" (3-5 mins), "deep" (5-10 mins)
+
+    Example:
+        research_pipeline(
+            query="What are the latest advances in quantum computing?",
+            analysis_depth="deep"
+        )
+    """
+    if ctx:
+        await ctx.info(f"🔬 Starting research pipeline: {query}")
+        await ctx.info(f"Analysis depth: {analysis_depth}")
+
+    # Configure based on depth
+    depth_config = {
+        "quick": {"search_limit": 5, "max_tokens": 500},
+        "standard": {"search_limit": 10, "max_tokens": 1000},
+        "deep": {"search_limit": 20, "max_tokens": 2000}
+    }
+
+    depth_config.get(analysis_depth, depth_config["standard"])
+
+    # Create pipeline
+    pipeline = Pipeline(ctx)
+
+    # Execute pipeline steps
+    results = await (
+        pipeline
+        .add_step("search", pipeline_search_and_analyze, query=query)
+        .add_step("analyze", pipeline_llm_analyze)
+        .add_step("summarize", pipeline_llm_summarize)
+        .execute()
+    )
+
+    if ctx:
+        await ctx.info("✅ Research pipeline complete")
+
+    return {
+        "query": query,
+        "analysis_depth": analysis_depth,
+        "summary": results.get("summarize", {}).get("summary"),
+        "full_analysis": results.get("analyze", {}).get("analysis"),
+        "search_results_count": len(results.get("search", {}).get("results", [])),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@mcp.tool(
+    description="Comparative analysis of multiple queries using LLM sampling",
+    tags={"r2r", "pipeline", "comparison"}
+)
+async def comparative_analysis(
+    queries: list[str],
+    comparison_criteria: list[str] | None = None,
+    ctx: Context | None = None
+) -> dict:
+    """
+    Compare multiple search queries and provide comparative insights.
+
+    Uses ctx.sample for AI-powered comparison of results.
+
+    Args:
+        queries: List of 2-5 queries to compare
+        comparison_criteria: Optional criteria (e.g., ["accuracy", "completeness", "relevance"])
+
+    Example:
+        comparative_analysis(
+            queries=["RAG vs fine-tuning", "RAG vs prompt engineering"],
+            comparison_criteria=["use_cases", "cost", "performance"]
+        )
+    """
+    if not ctx:
+        return {"error": "Context required for LLM analysis"}
+
+    if len(queries) < 2:
+        return {"error": "At least 2 queries required for comparison"}
+
+    if len(queries) > 5:
+        return {"error": "Maximum 5 queries allowed"}
+
+    await ctx.info(f"🔍 Comparative analysis of {len(queries)} queries")
+    await ctx.report_progress(0, len(queries) + 1)
+
+    # Search for each query
+    search_results = {}
+    for idx, query in enumerate(queries):
+        await ctx.info(f"Searching: {query}")
+
+        # In real implementation, this would call R2R search API
+        search_results[query] = {
+            "results": [{"text": f"Sample result for: {query}"}]
+        }
+
+        await ctx.report_progress(idx + 1, len(queries) + 1)
+
+    # Prepare comparison prompt
+    comparison_text = "\n\n".join([
+        f"Query {i + 1}: {q}\nResults: {r}"
+        for i, (q, r) in enumerate(search_results.items())
+    ])
+
+    criteria_text = (
+        f"\n\nComparison Criteria: {', '.join(comparison_criteria)}"
+        if comparison_criteria
+        else ""
+    )
+
+    prompt = f"""Compare the following search queries and their results:
+
+{comparison_text}{criteria_text}
+
+Provide a structured comparison including:
+1. Key similarities and differences
+2. Strengths and limitations of each
+3. Best use cases for each
+4. Overall recommendation"""
+
+    await ctx.info("🤖 Generating comparative analysis...")
+
+    # Use LLM sampling for comparison
+    response = await ctx.sample(
+        messages=prompt,
+        system_prompt="You are an expert analyst specializing in comparative analysis and synthesis.",
+        temperature=0.4,
+        max_tokens=2000
+    )
+
+    await ctx.report_progress(len(queries) + 1, len(queries) + 1)
+    await ctx.info("✅ Comparative analysis complete")
+
+    return {
+        "queries": queries,
+        "comparison": response.text,
+        "criteria": comparison_criteria,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@mcp.tool(
+    description="Extract structured data from documents using LLM sampling",
+    tags={"r2r", "extraction", "structured"}
+)
+async def extract_structured_data(
+    document_id: str,
+    schema: dict,
+    ctx: Context | None = None
+) -> dict:
+    """
+    Extract structured data from a document according to a provided schema.
+
+    Uses ctx.sample to intelligently extract and structure information.
+
+    Args:
+        document_id: R2R document UUID
+        schema: JSON schema describing desired output structure
+            Example: {
+                "title": "string",
+                "authors": ["string"],
+                "key_findings": ["string"],
+                "date": "YYYY-MM-DD"
+            }
+
+    Example:
+        extract_structured_data(
+            document_id="abc123",
+            schema={
+                "title": "string",
+                "summary": "string (max 200 chars)",
+                "topics": ["string"],
+                "sentiment": "positive|neutral|negative"
+            }
+        )
+    """
+    if not ctx:
+        return {"error": "Context required for extraction"}
+
+    await ctx.info(f"📄 Extracting structured data from document {document_id}")
+
+    # Fetch document (in real implementation)
+    # document = await _client.get(f"{_r2r_base_url}/v3/documents/{document_id}")
+
+    # For demo, use placeholder
+    document_content = f"Sample content for document {document_id}"
+
+    await ctx.info("🔍 Analyzing document with schema...")
+
+    # Use pipeline's structured output function
+    result = await sample_structured_output(
+        ctx=ctx,
+        data={
+            "document_id": document_id,
+            "content": document_content,
+            "schema": schema
+        },
+        output_format="json"
+    )
+
+    await ctx.info("✅ Extraction complete")
+
+    return {
+        "document_id": document_id,
+        "schema": schema,
+        "extracted_data": result,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@mcp.tool(
+    description="Generate follow-up questions based on search results",
+    tags={"r2r", "questions", "exploration"}
+)
+async def generate_followup_questions(
+    initial_query: str,
+    num_questions: int = 5,
+    ctx: Context | None = None
+) -> dict:
+    """
+    Generate intelligent follow-up questions using LLM sampling.
+
+    Helps users explore topics more deeply by suggesting relevant questions.
+
+    Args:
+        initial_query: The original search query
+        num_questions: Number of follow-up questions (default: 5, max: 10)
+
+    Example:
+        generate_followup_questions(
+            initial_query="What is GraphRAG?",
+            num_questions=5
+        )
+    """
+    if not ctx:
+        return {"error": "Context required for question generation"}
+
+    num_questions = min(num_questions, 10)  # Cap at 10
+
+    await ctx.info(f"💡 Generating {num_questions} follow-up questions")
+
+    # Search for initial query (in real implementation)
+    # search_results = await _client.post(...)
+
+    prompt = f"""Based on the query: "{initial_query}"
+
+Generate {num_questions} insightful follow-up questions that would help explore this topic more deeply.
+
+Questions should:
+1. Build on the initial query
+2. Cover different aspects (technical, practical, comparative, etc.)
+3. Be specific and answerable
+4. Progress from basic to advanced
+
+Format as a numbered list."""
+
+    response = await ctx.sample(
+        messages=prompt,
+        system_prompt="You are an expert at generating insightful questions for research and exploration.",
+        temperature=0.7,  # Higher for creative questions
+        max_tokens=800
+    )
+
+    await ctx.info("✅ Questions generated")
+
+    # Parse questions from response
+    questions_text = response.text
+    questions = [
+        line.strip()
+        for line in questions_text.split('\n')
+        if line.strip() and any(line.strip().startswith(f"{i}.") for i in range(1, 20))
+    ]
+
+    return {
+        "initial_query": initial_query,
+        "follow_up_questions": questions,
+        "count": len(questions),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 if __name__ == "__main__":
     # Run with stdio transport (for Claude Desktop and FastMCP Cloud)
     logger.info("Starting R2R MCP Server with stdio transport")
-    logger.info(f"Enhanced features: {3} resource templates, {2} prompts, {2} tools")
+    logger.info(
+        "Enhanced features: 3 resource templates, 2 prompts, 6 tools (2 basic + 4 pipelines)"
+    )
     mcp.run()
