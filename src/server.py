@@ -16,6 +16,8 @@ R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
 R2R_API_KEY = os.getenv("R2R_API_KEY", "")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 DEBUG_LOGGING = os.getenv("DEBUG_LOGGING", "false").lower() == "true"
+# Custom OpenAPI URL override (if specified, use it instead of R2R_BASE_URL/openapi.json)
+R2R_OPENAPI_URL = os.getenv("R2R_OPENAPI_URL", "")
 
 # Enable debug logging if requested
 if DEBUG_LOGGING:
@@ -23,7 +25,8 @@ if DEBUG_LOGGING:
     logging.getLogger("fastmcp").setLevel(logging.DEBUG)
 
 # Load OpenAPI specification from R2R API directly
-openapi_url = f"{R2R_BASE_URL}/openapi.json"
+# Use custom OpenAPI URL if specified, otherwise construct from base URL
+openapi_url = R2R_OPENAPI_URL if R2R_OPENAPI_URL else f"{R2R_BASE_URL}/openapi.json"
 
 # Log configuration for debugging (mask API key)
 if DEBUG_LOGGING:
