@@ -125,18 +125,30 @@ RouteMap(
 
 ### Аутентификация
 
-Конфигурируется через httpx.AsyncClient headers:
+**КРИТИЧЕСКИ ВАЖНО для FastMCP Cloud:**
+
+Аутентификация реализована через **DynamicBearerAuth** класс, который читает API ключ из переменных окружения **при каждом запросе** (не при инициализации):
 
 ```python
-headers = {"Authorization": f"Bearer {R2R_API_KEY}"}
-client = httpx.AsyncClient(
-    base_url=R2R_BASE_URL,
-    headers=headers,
-    timeout=R2R_TIMEOUT,
-)
+class DynamicBearerAuth(httpx.Auth):
+    """Auth handler that reads API key from environment at request time."""
+
+    def auth_flow(self, request: httpx.Request):
+        # Read API key at REQUEST TIME, not at initialization
+        api_key = os.getenv("R2R_API_KEY", "")
+        if api_key:
+            request.headers["Authorization"] = f"Bearer {api_key}"
+        yield request
 ```
 
-НИКОГДА не хардкодить API ключи в коде - только через .env!
+**Почему это важно:**
+- ❌ НЕ РАБОТАЕТ: Создание headers при импорте модуля → в FastMCP Cloud env vars еще не доступны
+- ✅ РАБОТАЕТ: Чтение API ключа при выполнении запроса → env vars уже инжектированы платформой
+
+**Правила:**
+- НИКОГДА не хардкодить API ключи в коде - только через .env
+- НЕ читать API ключ на уровне модуля (module-level) - только внутри функций/классов
+- Использовать `httpx.Auth` для динамической инжекции credentials
 
 ## 🏗️ Структура файлов
 
