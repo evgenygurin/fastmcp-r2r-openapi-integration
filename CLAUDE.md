@@ -81,17 +81,6 @@ DEBUG_LOGGING=true
 # - OpenAPI compliance информацию
 ```
 
-**ENABLE_CACHING** - кэширование ответов API:
-```bash
-# В .env добавьте:
-ENABLE_CACHING=true
-
-# Преимущества:
-# - Ускоряет повторные запросы
-# - Снижает нагрузку на R2R API
-# - Идеально для read-heavy workloads
-```
-
 **Experimental OpenAPI Parser**:
 Сервер автоматически пытается использовать новый экспериментальный парсер с fallback на legacy:
 - ✅ 100-200ms быстрее старт (нет code generation)
