@@ -76,7 +76,7 @@ uv run python -m src.server http 8000
       "command": "uv",
       "args": [
         "--directory",
-        "/полный/путь/к/fastapi-r2r-openapi-integration",
+        "/полный/путь/к/fastmcp-r2r-openapi-integration",
         "run",
         "python",
         "-m",
@@ -162,7 +162,7 @@ curl -o openapi.json http://localhost:7272/openapi.json
 ## Структура проекта
 
 ```text
-fastapi-r2r-openapi-integration/
+fastmcp-r2r-openapi-integration/
 ├── src/
 │   ├── __init__.py
 │   └── server.py          # Основной MCP сервер
