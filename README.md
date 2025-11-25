@@ -7,6 +7,8 @@
 
 FastMCP-based Model Context Protocol (MCP) сервер для R2R API, обеспечивающий интеграцию с системами управления документами, графами знаний и RAG.
 
+> **⚡ Важно**: Для корректной работы с OpenAPI 3.1 спецификацией рекомендуется включить экспериментальный парсер FastMCP. Добавьте `FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER=true` в `.env` файл.
+
 ## Возможности
 
 - **Автоматическая генерация** MCP компонентов из OpenAPI спецификации
@@ -47,6 +49,9 @@ cp .env.example .env
 # Обязательные параметры
 R2R_BASE_URL=http://localhost:7272
 R2R_API_KEY=your_actual_api_key_here
+
+# Рекомендуется: включить экспериментальный парсер (лучшая совместимость с OpenAPI 3.1)
+FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER=true
 
 # Опциональные параметры производительности
 R2R_TIMEOUT=30.0              # Таймаут запросов (секунды)
