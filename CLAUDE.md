@@ -94,34 +94,42 @@ DEBUG_LOGGING=true
 
 ### Route Maps: Семантическая маршрутизация
 
-FastMCP позволяет контролировать, как OpenAPI endpoints преобразуются в MCP компоненты:
+FastMCP позволяет контролировать, как OpenAPI endpoints преобразуются в MCP компоненты.
 
-**MCPType.RESOURCE_TEMPLATE** - параметризованные ресурсы (GET с path params):
+**Наша конфигурация (проверено на всех 81 endpoints R2R API):**
+
 ```python
-RouteMap(
-    methods=["GET"],
-    pattern=r"^/v3/documents/\{id\}$",
-    mcp_type=MCPType.RESOURCE_TEMPLATE,
-)
+route_maps = [
+    # GET с параметрами {id} -> RESOURCE_TEMPLATE
+    # Примеры: /v3/chunks/{id}, /v3/collections/{id}/documents
+    RouteMap(
+        methods=["GET"],
+        pattern=r"^/v3/.*\{.*\}.*$",
+        mcp_type=MCPType.RESOURCE_TEMPLATE,
+    ),
+
+    # GET без параметров -> RESOURCE
+    # Примеры: /v3/chunks, /v3/documents, /health
+    RouteMap(
+        methods=["GET"],
+        pattern=r"^/v3/.*$",
+        mcp_type=MCPType.RESOURCE,
+    ),
+
+    # Все POST/PUT/PATCH/DELETE -> TOOL
+    # Примеры: POST /v3/chunks/search, DELETE /v3/documents/{id}
+    RouteMap(
+        methods=["POST", "PUT", "PATCH", "DELETE"],
+        pattern=r".*",
+        mcp_type=MCPType.TOOL,
+    ),
+]
 ```
 
-**MCPType.RESOURCE** - статичные ресурсы (GET списков):
-```python
-RouteMap(
-    methods=["GET"],
-    pattern=r"^/v3/documents$",
-    mcp_type=MCPType.RESOURCE,
-)
-```
-
-**MCPType.TOOL** - операции модификации (POST/PUT/DELETE):
-```python
-RouteMap(
-    methods=["POST"],
-    pattern=r".*/search$",
-    mcp_type=MCPType.TOOL,
-)
-```
+**Важные принципы:**
+- ✅ Правила проверяются по порядку - более специфичные паттерны должны быть первыми
+- ✅ Паттерн `\{.*\}` ловит ВСЕ path parameters, включая вложенные пути
+- ✅ Простота > сложность: 3 правила покрывают все 114 routes
 
 ### Аутентификация
 
