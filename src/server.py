@@ -104,24 +104,121 @@ def _create_client() -> httpx.AsyncClient:
 
 
 # Define semantic route mappings for R2R API
-# Following FastMCP best practices for OpenAPI semantic mapping
+# Based on analysis of 114 routes across 11 categories:
+# - chunks, collections, conversations, documents, graphs
+# - health, indices, prompts, retrieval, system, users
 # See: https://gofastmcp.com/integrations/openapi
 route_maps = [  # type: ignore
-    # GET requests with path parameters -> RESOURCE_TEMPLATE
-    # Matches: /v3/chunks/{id}, /v3/collections/{id}/documents, etc.
+    # === SEMANTIC SEARCH & RAG (retrieval category) ===
+    RouteMap(
+        methods=["POST"],
+        pattern=r"/v3/retrieval/(search|rag|agent)",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"retrieval", "ai", "search"},
+    ),
+    # === KNOWLEDGE GRAPH OPERATIONS ===
+    RouteMap(
+        methods=["GET", "POST", "DELETE"],
+        pattern=r"/v3/graphs/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"knowledge-graph", "entities", "relationships"},
+    ),
+    # === USER & AUTHENTICATION ===
     RouteMap(
         methods=["GET"],
-        pattern=r".*\{.*\}.*",
+        pattern=r"/v3/users/\{.*\}",
         mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
+        mcp_tags={"users", "auth"},
     ),
-    # All other GET requests -> RESOURCE
-    # Matches: /v3/chunks, /v3/documents, /health, etc.
     RouteMap(
         methods=["GET"],
-        pattern=r".*",
+        pattern=r"/v3/users",
         mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"users", "auth"},
     ),
-    # POST/PUT/PATCH/DELETE default to TOOL (implicit, no need to specify)
+    RouteMap(
+        methods=["POST", "DELETE", "PUT"],
+        pattern=r"/v3/users/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"users", "auth", "management"},
+    ),
+    # === DOCUMENTS (core data) ===
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/documents/\{.*\}",
+        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
+        mcp_tags={"documents", "data"},
+    ),
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/documents.*",
+        mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"documents", "data"},
+    ),
+    RouteMap(
+        methods=["POST", "DELETE", "PUT", "PATCH"],
+        pattern=r"/v3/documents/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"documents", "data", "management"},
+    ),
+    # === COLLECTIONS ===
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/collections/\{.*\}",
+        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
+        mcp_tags={"collections", "organization"},
+    ),
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/collections$",
+        mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"collections", "organization"},
+    ),
+    RouteMap(
+        methods=["POST", "DELETE"],
+        pattern=r"/v3/collections/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"collections", "organization", "management"},
+    ),
+    # === CHUNKS & CONVERSATIONS ===
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/(chunks|conversations)/\{.*\}",
+        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
+        mcp_tags={"data"},
+    ),
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/(chunks|conversations)$",
+        mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"data"},
+    ),
+    RouteMap(
+        methods=["POST", "DELETE"],
+        pattern=r"/v3/(chunks|conversations)/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"data", "management"},
+    ),
+    # === SYSTEM & MONITORING ===
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/(health|system)/.*",
+        mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"system", "monitoring"},
+    ),
+    # === PROMPTS & INDICES (configuration) ===
+    RouteMap(
+        methods=["GET"],
+        pattern=r"/v3/(prompts|indices).*",
+        mcp_type=MCPType.RESOURCE,  # type: ignore
+        mcp_tags={"configuration"},
+    ),
+    RouteMap(
+        methods=["POST", "DELETE"],
+        pattern=r"/v3/(prompts|indices)/.*",
+        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_tags={"configuration", "management"},
+    ),
 ]
 
 # Create MCP server from OpenAPI specification
