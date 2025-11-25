@@ -29,11 +29,12 @@ For more information, see the project README and workspace rules.
 
 import logging
 import os
+from datetime import datetime
 from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 
 # Import from experimental parser if available (faster, stateless, better serverless)
 try:
@@ -310,7 +311,350 @@ def _get_route_map_description(idx: int) -> str:
     return descriptions[idx] if idx < len(descriptions) else "Custom mapping rule"
 
 
+# ============================================================================
+# ENHANCED R2R RESOURCES - Direct access to R2R data
+# ============================================================================
+
+
+@mcp.resource(
+    "r2r://documents/{document_id}",
+    description="Get detailed information about a specific R2R document",
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
+async def get_document_resource(document_id: str, ctx: Context) -> dict[str, Any]:
+    """Fetch detailed document information from R2R API.
+
+    This resource template provides direct access to document metadata,
+    allowing LLMs to inspect document properties without making tool calls.
+    """
+    try:
+        await ctx.info(f"Fetching document: {document_id}")
+        response = await _client.get(f"/v3/documents/{document_id}")
+        response.raise_for_status()
+
+        await ctx.debug(f"Successfully fetched document {document_id}")
+        return response.json()
+
+    except httpx.HTTPError as e:
+        await ctx.error(f"Failed to fetch document {document_id}: {e}")
+        return {
+            "error": f"Failed to fetch document: {e}",
+            "document_id": document_id,
+        }
+
+
+@mcp.resource(
+    "r2r://collections/{collection_id}/summary",
+    description="Get summary information for an R2R collection",
+    annotations={"readOnlyHint": True, "idempotentHint": True},
+)
+async def get_collection_summary(collection_id: str, ctx: Context) -> dict[str, Any]:
+    """Fetch collection summary with document count and metadata."""
+    try:
+        await ctx.info(f"Fetching collection summary: {collection_id}")
+
+        # Get collection info
+        response = await _client.get(f"/v3/collections/{collection_id}")
+        response.raise_for_status()
+        collection_data = response.json()
+
+        # Get documents in collection
+        docs_response = await _client.get(f"/v3/collections/{collection_id}/documents")
+        docs_response.raise_for_status()
+        documents = docs_response.json()
+
+        return {
+            "collection_id": collection_id,
+            "collection_info": collection_data,
+            "document_count": len(documents.get("results", [])),
+            "fetched_at": datetime.now().isoformat(),
+        }
+
+    except httpx.HTTPError as e:
+        await ctx.error(f"Failed to fetch collection {collection_id}: {e}")
+        return {
+            "error": f"Failed to fetch collection: {e}",
+            "collection_id": collection_id,
+        }
+
+
+@mcp.resource(
+    "r2r://search/results/{query}{?limit}",
+    description="Search R2R knowledge base and return results",
+    mime_type="application/json",
+)
+async def search_knowledge_base(
+    query: str,
+    limit: int = 10,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Search R2R documents with optional result limit.
+
+    Demonstrates RFC 6570 query parameters - limit is optional and
+    can be provided via ?limit=N in the URI.
+    """
+    if ctx:
+        await ctx.info(f"Searching R2R: '{query}' (limit={limit})")
+
+    try:
+        search_payload = {"query": query, "search_settings": {"limit": limit}}
+
+        response = await _client.post("/v3/retrieval/search", json=search_payload)
+        response.raise_for_status()
+        results = response.json()
+
+        if ctx:
+            await ctx.debug(
+                f"Search returned {len(results.get('results', {}))} results"
+            )
+
+        return {
+            "query": query,
+            "limit": limit,
+            "results": results,
+            "searched_at": datetime.now().isoformat(),
+        }
+
+    except httpx.HTTPError as e:
+        error_msg = f"Search failed: {e}"
+        if ctx:
+            await ctx.error(error_msg)
+        return {"error": error_msg, "query": query}
+
+
+# ============================================================================
+# PROMPTS - Reusable message templates for R2R operations
+# ============================================================================
+
+
+@mcp.prompt(
+    name="rag_query_prompt",
+    description="Generate a well-structured RAG query for R2R",
+    tags={"r2r", "rag", "query"},
+)
+async def create_rag_query_prompt(
+    question: str,
+    context: str = "",
+    ctx: Context | None = None,
+) -> str:
+    """Create a prompt for R2R RAG queries with optional context.
+
+    This prompt template helps structure questions for optimal
+    retrieval-augmented generation results.
+    """
+    if ctx:
+        await ctx.info(f"Generating RAG prompt for question: {question[:50]}...")
+
+    base_prompt = f"""Please answer the following question using the R2R knowledge base:
+
+Question: {question}
+"""
+
+    if context:
+        base_prompt += f"""
+Additional Context: {context}
+"""
+
+    base_prompt += """
+Please provide:
+1. A clear, concise answer based on the retrieved documents
+2. Citations to specific sources when possible
+3. Confidence level in your answer (high/medium/low)
+"""
+
+    return base_prompt
+
+
+@mcp.prompt(
+    name="document_analysis_prompt",
+    description="Generate a prompt for analyzing R2R document content",
+    tags={"r2r", "analysis", "documents"},
+)
+def create_document_analysis_prompt(
+    document_id: str,
+    analysis_type: str = "summary",
+) -> str:
+    """Create a prompt for analyzing R2R documents.
+
+    Args:
+        document_id: The R2R document UUID
+        analysis_type: Type of analysis (summary, entities, topics, sentiment)
+    """
+    prompts_by_type = {
+        "summary": f"""Analyze the document {document_id} and provide:
+1. A concise summary (2-3 sentences)
+2. Key topics and themes
+3. Document type and structure
+""",
+        "entities": f"""Extract structured information from document {document_id}:
+1. Named entities (people, organizations, locations)
+2. Key concepts and terminology
+3. Dates and numerical data
+""",
+        "topics": f"""Identify the main topics in document {document_id}:
+1. Primary subject areas
+2. Related themes and concepts
+3. Suggested tags for categorization
+""",
+        "sentiment": f"""Analyze the sentiment and tone of document {document_id}:
+1. Overall sentiment (positive/neutral/negative)
+2. Emotional tone and writing style
+3. Intended audience and purpose
+""",
+    }
+
+    return prompts_by_type.get(
+        analysis_type,
+        f"Analyze document {document_id} (type: {analysis_type})",
+    )
+
+
+# ============================================================================
+# ENHANCED TOOLS - Tools with Context for better UX
+# ============================================================================
+
+
+@mcp.tool(
+    description="Search R2R knowledge base with progress reporting",
+    tags={"r2r", "search", "enhanced"},
+)
+async def enhanced_search(
+    query: str,
+    limit: int = 10,
+    search_type: str = "hybrid",
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Enhanced search with context logging and progress reporting.
+
+    Demonstrates FastMCP Context capabilities:
+    - Progress reporting for long operations
+    - Info/debug logging for visibility
+    - Error handling with context logging
+    """
+    if ctx:
+        await ctx.info(f"🔍 Starting enhanced search: '{query}'")
+        await ctx.report_progress(progress=0, total=100)
+
+    try:
+        # Prepare search
+        search_payload = {
+            "query": query,
+            "search_settings": {
+                "limit": limit,
+                "use_hybrid_search": search_type == "hybrid",
+                "use_semantic_search": search_type in ["semantic", "hybrid"],
+            },
+        }
+
+        if ctx:
+            await ctx.debug(f"Search settings: {search_payload['search_settings']}")
+            await ctx.report_progress(progress=30, total=100)
+
+        # Execute search
+        response = await _client.post("/v3/retrieval/search", json=search_payload)
+        response.raise_for_status()
+
+        if ctx:
+            await ctx.report_progress(progress=80, total=100)
+
+        results = response.json()
+        result_count = len(results.get("results", {}).get("chunk_search_results", []))
+
+        if ctx:
+            await ctx.info(f"✓ Found {result_count} results")
+            await ctx.report_progress(progress=100, total=100)
+
+        return {
+            "query": query,
+            "search_type": search_type,
+            "result_count": result_count,
+            "results": results,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except httpx.HTTPError as e:
+        error_msg = f"Search failed: {e}"
+        if ctx:
+            await ctx.error(f"❌ {error_msg}")
+        raise RuntimeError(error_msg) from e
+
+
+@mcp.tool(
+    description="Analyze R2R search results using LLM sampling",
+    tags={"r2r", "analysis", "ai"},
+)
+async def analyze_search_results(
+    query: str,
+    limit: int = 5,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """Search R2R and use LLM sampling to analyze results.
+
+    This tool demonstrates FastMCP's LLM sampling capability:
+    - Performs R2R search
+    - Uses ctx.sample() to analyze results with LLM
+    - Returns structured analysis
+    """
+    if not ctx:
+        return {"error": "Context required for LLM sampling"}
+
+    try:
+        await ctx.info(f"🧠 Analyzing search results for: '{query}'")
+
+        # Step 1: Search R2R
+        search_payload = {"query": query, "search_settings": {"limit": limit}}
+        response = await _client.post("/v3/retrieval/search", json=search_payload)
+        response.raise_for_status()
+        results = response.json()
+
+        # Step 2: Format results for LLM analysis
+        chunks = results.get("results", {}).get("chunk_search_results", [])
+        if not chunks:
+            return {"analysis": "No results found", "query": query}
+
+        results_text = "\n\n".join([
+            f"Result {i + 1}: {chunk.get('text', '')[:200]}..."
+            for i, chunk in enumerate(chunks[:5])
+        ])
+
+        # Step 3: Use LLM sampling for analysis
+        await ctx.info("Requesting LLM analysis...")
+        analysis_prompt = f"""Analyze these search results for the query: "{query}"
+
+Results:
+{results_text}
+
+Provide:
+1. Key themes and patterns
+2. Relevance assessment
+3. Suggested follow-up questions
+"""
+
+        llm_response = await ctx.sample(
+            messages=analysis_prompt,
+            system_prompt=(
+                "You are an expert data analyst. Provide concise, structured analysis."
+            ),
+            temperature=0.3,
+            max_tokens=500,
+        )
+
+        await ctx.info("✓ Analysis complete")
+
+        return {
+            "query": query,
+            "result_count": len(chunks),
+            "analysis": llm_response.text,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        await ctx.error(f"Analysis failed: {e}")
+        raise
+
+
 if __name__ == "__main__":
     # Run with stdio transport (for Claude Desktop and FastMCP Cloud)
     logger.info("Starting R2R MCP Server with stdio transport")
+    logger.info(f"Enhanced features: {3} resource templates, {2} prompts, {2} tools")
     mcp.run()
