@@ -104,40 +104,24 @@ def _create_client() -> httpx.AsyncClient:
 
 
 # Define semantic route mappings for R2R API
-# Note: Type errors are expected due to experimental/legacy parser compatibility
-# IMPORTANT: Rules are checked in order - more specific patterns must come first!
+# Following FastMCP best practices for OpenAPI semantic mapping
+# See: https://gofastmcp.com/integrations/openapi
 route_maps = [  # type: ignore
-    # === RESOURCES (GET without modifications) ===
-    # GET with path parameters containing {id} or other params -> RESOURCE_TEMPLATE
-    # This catches all GET requests with path parameters like:
-    # - /v3/chunks/{id}
-    # - /v3/collections/{id}/documents
-    # - /v3/graphs/{graph_id}/entities/{entity_id}
+    # GET requests with path parameters -> RESOURCE_TEMPLATE
+    # Matches: /v3/chunks/{id}, /v3/collections/{id}/documents, etc.
     RouteMap(
         methods=["GET"],
-        pattern=r"^/v3/.*\{.*\}.*$",
+        pattern=r".*\{.*\}.*",
         mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
     ),
-    # GET without parameters (list operations) -> RESOURCE
-    # Must come after parametrized GET to avoid matching first
+    # All other GET requests -> RESOURCE
+    # Matches: /v3/chunks, /v3/documents, /health, etc.
     RouteMap(
         methods=["GET"],
-        pattern=r"^/v3/.*$",
-        mcp_type=MCPType.RESOURCE,  # type: ignore
-    ),
-    # Health check as resource
-    RouteMap(
-        methods=["GET"],
-        pattern=r"^/health$",
-        mcp_type=MCPType.RESOURCE,  # type: ignore
-    ),
-    # === TOOLS (All modifications and complex operations) ===
-    # All POST, PUT, PATCH, DELETE operations are Tools
-    RouteMap(
-        methods=["POST", "PUT", "PATCH", "DELETE"],
         pattern=r".*",
-        mcp_type=MCPType.TOOL,  # type: ignore
+        mcp_type=MCPType.RESOURCE,  # type: ignore
     ),
+    # POST/PUT/PATCH/DELETE default to TOOL (implicit, no need to specify)
 ]
 
 # Create MCP server from OpenAPI specification
@@ -156,7 +140,6 @@ def _create_mcp_server():
         client=client,
         name="R2R API MCP Server",
         route_maps=route_maps,  # type: ignore
-        tags={"r2r", "knowledge-graph", "document-management", "rag"},
     )
 
 
