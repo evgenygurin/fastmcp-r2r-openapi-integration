@@ -1,8 +1,6 @@
 """R2R MCP Server - FastMCP integration for R2R API."""
 
-import json
 import os
-from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
@@ -17,10 +15,12 @@ R2R_BASE_URL = os.getenv("R2R_BASE_URL", "http://localhost:7272")
 R2R_API_KEY = os.getenv("R2R_API_KEY")
 R2R_TIMEOUT = float(os.getenv("R2R_TIMEOUT", "30.0"))
 
-# Load OpenAPI specification
-OPENAPI_PATH = Path(__file__).parent.parent / "openapi.json"
-with open(OPENAPI_PATH) as f:
-    openapi_spec = json.load(f)
+# Load OpenAPI specification from R2R API directly
+# This ensures we always have the latest API specification
+openapi_url = f"{R2R_BASE_URL}/openapi.json"
+response = httpx.get(openapi_url, timeout=30.0)
+response.raise_for_status()
+openapi_spec = response.json()
 
 # Create HTTP client with authentication
 headers = {}
