@@ -22,7 +22,7 @@
 
 #### 2. Entrypoint
 ```text
-server.py:mcp
+src/server.py:mcp
 ```
 
 #### 3. Environment Variables
@@ -48,7 +48,7 @@ R2R_TIMEOUT=30.0
 2. Нажмите "Deploy Server"
 3. Выберите GitHub репозиторий: `evgenygurin/fastmcp-r2r-openapi-integration`
 4. Настройте параметры:
-   - **Entrypoint:** `server.py:mcp`
+   - **Entrypoint:** `src/server.py:mcp`
    - **Authentication:** ✅ Включено
    - **Environment Variables:** Добавьте креденшалы R2R
 5. Нажмите "Deploy Server"

@@ -87,7 +87,7 @@
   87   "mcpServers": {
   88     "r2r": {
   89       "command": "uv",
-  90       "args": ["--directory", "/Users/laptop/dev/fastmcp-r2r-openapi-integration", "run", "python", "-m", "src.server"],
+  90       "args": ["--directory", "/path/to/fastmcp-r2r-openapi-integration", "run", "python", "-m", "src.server"],
   91       "env": {
   92         "R2R_BASE_URL": "http://localhost:7272",
   93         "R2R_API_KEY": "your_api_key_here"

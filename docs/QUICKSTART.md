@@ -5,7 +5,7 @@
 ### 1. Проверка установки
 
 ```bash
-cd /Users/laptop/dev/fastmcp-r2r-openapi-integration
+cd /path/to/fastmcp-r2r-openapi-integration
 
 # Зависимости уже установлены
 # Конфигурация уже создана в .env
@@ -22,7 +22,7 @@ cd /Users/laptop/dev/fastmcp-r2r-openapi-integration
       "command": "uv",
       "args": [
         "--directory",
-        "/Users/laptop/dev/fastmcp-r2r-openapi-integration",
+        "/path/to/fastmcp-r2r-openapi-integration",
         "run",
         "python",
         "-m",

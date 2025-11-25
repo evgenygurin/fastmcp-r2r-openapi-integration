@@ -55,7 +55,7 @@ R2R_TIMEOUT=30.0
 
 Самый простой способ - задеплоить на [FastMCP Cloud](https://fastmcp.cloud):
 
-1. **Entrypoint:** `server.py:mcp`
+1. **Entrypoint:** `src/server.py:mcp`
 2. **Environment Variables:** Добавьте ваши R2R креденшалы
 3. **Authentication:** Включите для безопасности
 
@@ -86,7 +86,7 @@ uv run python -m src.server http 8000
       "command": "uv",
       "args": [
         "--directory",
-        "/полный/путь/к/fastmcp-r2r-openapi-integration",
+        "/path/to/fastmcp-r2r-openapi-integration",
         "run",
         "python",
         "-m",
@@ -172,21 +172,29 @@ curl -o openapi.json http://localhost:7272/openapi.json
 ## Структура проекта
 
 ```text
-fastmcp-r2r-openapi-integration/
+.
 ├── src/
 │   ├── __init__.py
 │   └── server.py          # Основной MCP сервер
-├── openapi.json           # R2R OpenAPI спецификация
-├── pyproject.toml         # Зависимости и конфигурация
-├── .env.example           # Пример конфигурации
-├── .gitignore
-└── README.md
+├── docs/
+│   ├── DEPLOYMENT.md      # Руководство по деплою
+│   ├── QUICKSTART.md      # Быстрый старт
+│   └── SUMMARY.md         # Обзор проекта
+├── requirements.txt       # Python зависимости
+├── pyproject.toml         # Конфигурация проекта (uv + ruff)
+├── Makefile               # Удобные команды
+├── CLAUDE.md              # Память для Claude Code
+├── LICENSE                # MIT License
+├── README.md              # Эта документация
+├── .env.example           # Шаблон конфигурации
+├── .gitignore             # Git игнорирование
+└── openapi.json           # R2R OpenAPI спецификация
 ```
 
 ## Полезные ссылки
 
 - [FastMCP Documentation](https://gofastmcp.com)
-- [R2R API Documentation](http://localhost:7272/docs)
+- [R2R Documentation](https://r2r-docs.sciphi.ai/)
 - [Model Context Protocol](https://modelcontextprotocol.io)
 
 ## Лицензия

@@ -49,7 +49,7 @@ make update-spec
       "command": "uv",
       "args": [
         "--directory",
-        "/полный/путь/к/проекту",
+        "/path/to/fastmcp-r2r-openapi-integration",
         "run",
         "python",
         "-m",
@@ -151,5 +151,5 @@ make fix && make lint
 ## 📖 Дополнительные ресурсы
 
 - [FastMCP OpenAPI Integration](https://gofastmcp.com/integrations/openapi)
-- [R2R API Docs](http://localhost:7272/docs)
+- [R2R Documentation](https://r2r-docs.sciphi.ai/)
 - [MCP Specification](https://modelcontextprotocol.io)
