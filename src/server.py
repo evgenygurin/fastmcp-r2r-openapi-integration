@@ -105,55 +105,38 @@ def _create_client() -> httpx.AsyncClient:
 
 # Define semantic route mappings for R2R API
 # Note: Type errors are expected due to experimental/legacy parser compatibility
+# IMPORTANT: Rules are checked in order - more specific patterns must come first!
 route_maps = [  # type: ignore
     # === RESOURCES (GET without modifications) ===
-    # Single item retrieval - ResourceTemplate (parametrized)
+    # GET with path parameters containing {id} or other params -> RESOURCE_TEMPLATE
+    # This catches all GET requests with path parameters like:
+    # - /v3/chunks/{id}
+    # - /v3/collections/{id}/documents
+    # - /v3/graphs/{graph_id}/entities/{entity_id}
     RouteMap(
         methods=["GET"],
-        pattern=r"^/v3/(chunks|documents|collections|conversations)/\{id\}$",
+        pattern=r"^/v3/.*\{.*\}.*$",
         mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
     ),
+    # GET without parameters (list operations) -> RESOURCE
+    # Must come after parametrized GET to avoid matching first
     RouteMap(
         methods=["GET"],
-        pattern=r"^/v3/documents/\{id\}/download$",
-        mcp_type=MCPType.RESOURCE_TEMPLATE,  # type: ignore
-    ),
-    # List operations - Resources (read-only collections)
-    RouteMap(
-        methods=["GET"],
-        pattern=r"^/v3/(chunks|documents|collections|conversations|entities|relationships|communities)$",
+        pattern=r"^/v3/.*$",
         mcp_type=MCPType.RESOURCE,  # type: ignore
-    ),
-    # === TOOLS (All modifications and complex operations) ===
-    # Search operations
-    RouteMap(
-        methods=["POST"],
-        pattern=r".*/search$",
-        mcp_type=MCPType.TOOL,  # type: ignore
-    ),
-    # Create, Update, Delete operations
-    RouteMap(
-        methods=["POST", "PUT", "PATCH", "DELETE"],
-        pattern=r".*",
-        mcp_type=MCPType.TOOL,  # type: ignore
-    ),
-    # Graph operations
-    RouteMap(
-        methods=["POST"],
-        pattern=r"^/v3/(documents/\{id\}/(extract|deduplicate)|graphs/.*/communities/build)$",
-        mcp_type=MCPType.TOOL,  # type: ignore
-    ),
-    # Export operations
-    RouteMap(
-        methods=["POST"],
-        pattern=r".*/export$",
-        mcp_type=MCPType.TOOL,  # type: ignore
     ),
     # Health check as resource
     RouteMap(
         methods=["GET"],
         pattern=r"^/health$",
         mcp_type=MCPType.RESOURCE,  # type: ignore
+    ),
+    # === TOOLS (All modifications and complex operations) ===
+    # All POST, PUT, PATCH, DELETE operations are Tools
+    RouteMap(
+        methods=["POST", "PUT", "PATCH", "DELETE"],
+        pattern=r".*",
+        mcp_type=MCPType.TOOL,  # type: ignore
     ),
 ]
 
