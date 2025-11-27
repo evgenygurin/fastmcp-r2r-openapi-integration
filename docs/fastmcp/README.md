@@ -161,6 +161,42 @@
 
 ---
 
+### 9. [Многослойная архитектура](./09-layered-architecture.md)
+Функциональная архитектура FastMCP приложений с разделением ответственности.
+
+**Темы:**
+- **Концепция многослойной архитектуры:**
+  - Presentation Layer (Tools, Resources, Prompts)
+  - Business Logic Layer (Pipelines, Middleware, Context)
+  - Data Access Layer (HTTP Clients, OpenAPI)
+  - Transport Layer (stdio, HTTP, SSE)
+
+- **Организация кода:**
+  - Single-file приложения
+  - Модульные приложения (multi-file)
+  - Структура директорий
+
+- **Что НЕ использовать:**
+  - Почему Controllers не нужны
+  - Почему Services заменяются на Pipelines
+  - Почему Repositories обычно излишни
+
+- **Когда классы уместны:**
+  - Service Pattern для complex domain logic
+  - Repository Pattern для multiple data sources
+
+- **Functional vs Object-Oriented:**
+  - Pipeline composition
+  - Middleware chaining
+  - Context dependency injection
+
+- **Лучшие практики по слоям**
+- **Эвристика выбора подхода**
+
+**Для кого:** Разработчики, проектирующие масштабируемую архитектуру FastMCP приложений.
+
+---
+
 ## 🚀 Быстрые ссылки
 
 ### Для начинающих
@@ -197,6 +233,7 @@
 | Развертывание | [Deployment](./06-deployment-configuration.md) |
 | Интеграция с API | [FastAPI/OpenAPI](./08-fastapi-openapi.md) |
 | Обработка запросов | [Middleware](./07-middleware-error-handling.md) |
+| Архитектура приложений | [Layered Architecture](./09-layered-architecture.md) |
 
 ### По уровню сложности
 
@@ -214,13 +251,14 @@
 **Advanced (Продвинутый):**
 - [05-authentication.md](./05-authentication.md)
 - [07-middleware-error-handling.md](./07-middleware-error-handling.md)
+- [09-layered-architecture.md](./09-layered-architecture.md)
 - [06-deployment-configuration.md](./06-deployment-configuration.md) (Kubernetes, масштабирование)
 
 ## 📖 Рекомендуемый порядок изучения
 
 ### Трек 1: Backend разработчик
-1. Введение → Tools → Resources → Deployment → Middleware
-2. Фокус: Создание мощных серверов с богатой функциональностью
+1. Введение → Tools → Resources → Layered Architecture → Deployment → Middleware
+2. Фокус: Создание мощных серверов с функциональной архитектурой
 
 ### Трек 2: DevOps инженер
 1. Введение → Deployment → Authentication → Middleware
@@ -245,6 +283,7 @@
 - **JWT аутентификация:** [Authentication - JWT](./05-authentication.md#асимметричная-верификация-rsaecdsa)
 - **Logging middleware:** [Middleware - Логирование](./07-middleware-error-handling.md#логирование)
 - **FastAPI конвертация:** [FastAPI - Базовая конвертация](./08-fastapi-openapi.md#базовая-конвертация)
+- **Pipeline композиция:** [Architecture - Pipelines](./09-layered-architecture.md#22-pipelines-композиция-операций)
 
 ## 🔍 Поиск по документации
 
@@ -253,11 +292,13 @@
 **Часто ищут:**
 - `@mcp.tool` - декоратор для создания tools
 - `Context` - доступ к MCP контексту
+- `Pipeline` - композиция операций
 - `async with client:` - паттерн работы с клиентом
 - `fastmcp.json` - файл конфигурации
 - `JWTVerifier` - JWT аутентификация
 - `Middleware` - создание middleware
 - `from_fastapi` - конвертация FastAPI
+- `DynamicBearerAuth` - request-time authentication
 
 ## 💡 Советы по использованию документации
 
