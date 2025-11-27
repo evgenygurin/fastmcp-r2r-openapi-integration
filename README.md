@@ -224,14 +224,52 @@ uv run ruff format .
 curl -o openapi.json http://localhost:7272/openapi.json
 ```
 
+## Архитектура
+
+### Typed Client (NEW)
+
+Проект использует **typed wrapper** подход для лучшего DX, сохраняя serverless compatibility:
+
+```python
+# src/r2r_typed.py - Type-safe wrapper around httpx
+from src.r2r_typed import R2RTypedClient
+
+_client = httpx.AsyncClient(auth=DynamicBearerAuth())
+r2r = R2RTypedClient(_client)  # ← Typed wrapper
+
+# Type-safe search with autocomplete
+results = await r2r.search(
+    query="machine learning",
+    limit=10,
+    use_hybrid_search=True  # ← IDE autocomplete!
+)
+```
+
+**Преимущества:**
+- ✅ Type hints (IDE autocomplete, mypy checking)
+- ✅ DynamicBearerAuth (serverless compatible)
+- ✅ Less boilerplate
+- ✅ Full HTTP control
+
+См.: `docs/R2R_CLIENT_ANALYSIS.md` для details.
+
 ## Структура проекта
 
 ```text
 .
 ├── src/
 │   ├── __init__.py
-│   └── server.py          # Основной MCP сервер
+│   ├── server.py          # Основной MCP сервер (использует R2RTypedClient)
+│   ├── r2r_typed.py       # Type-safe wrapper (NEW)
+│   └── pipelines.py       # Pipeline compositions
+├── scripts/               # Standalone scripts с R2RClient (NEW)
+│   ├── README.md          # Документация scripts
+│   ├── batch_ingest.py    # Batch document upload
+│   └── search_cli.py      # Interactive search CLI
 ├── docs/
+│   ├── R2R_CLIENT_ANALYSIS.md       # R2RClient vs httpx analysis (NEW)
+│   ├── R2R_FASTMCP_INTEGRATION.md   # Integration guide (NEW)
+│   ├── INTEGRATION_QUICKSTART.md    # Quick start guide (NEW)
 │   ├── DEPLOYMENT.md      # Руководство по деплою
 │   ├── QUICKSTART.md      # Быстрый старт
 │   └── SUMMARY.md         # Обзор проекта
