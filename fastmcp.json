@@ -4,8 +4,8 @@
     "entrypoint": "src/server.py:mcp"
   },
   "environment": {
-    "python": "3.11",
-    "dependencies": "requirements.txt"
+    "python": "3.12",
+    "dependencies": "pyproject.toml"
   },
   "deployment": {
     "transport": "http",
