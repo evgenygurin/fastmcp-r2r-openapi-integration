@@ -15,6 +15,7 @@ Based on R2R RAG queries with 20 sources per query covering:
 
 import asyncio
 import json
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -186,7 +187,7 @@ class Pipeline:
     def add_step(
         self,
         name: str,
-        func: callable,
+        func: Callable,
         **kwargs
     ) -> "Pipeline":
         """Add a step to the pipeline.
@@ -451,8 +452,8 @@ class ConditionalPipeline:
     def add_step(
         self,
         name: str,
-        func: callable,
-        condition: callable | None = None,
+        func: Callable,
+        condition: Callable | None = None,
         **kwargs
     ) -> "ConditionalPipeline":
         """Add a conditional step.
@@ -512,8 +513,8 @@ class ConditionalPipeline:
 
 
 async def pipeline_with_fallback(
-    primary_func: callable,
-    fallback_func: callable,
+    primary_func: Callable,
+    fallback_func: Callable,
     ctx: Context | None = None,
     **kwargs
 ) -> Any:
@@ -660,4 +661,3 @@ __all__ = [
     "sample_with_retry",
     "sample_with_system_prompt",
 ]
-

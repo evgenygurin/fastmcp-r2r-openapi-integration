@@ -37,14 +37,14 @@ from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
 
 # Import pipeline components and typed client
-from src.pipelines import (
+from .pipelines import (
     Pipeline,
     pipeline_llm_analyze,
     pipeline_llm_summarize,
     pipeline_search_and_analyze,
     sample_structured_output,
 )
-from src.r2r_typed import R2RTypedClient
+from .r2r_typed import R2RTypedClient
 
 # Import from experimental parser if available (faster, stateless, better serverless)
 try:
