@@ -1,0 +1,21 @@
+{
+  "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
+  "source": {
+    "entrypoint": "src/server.py:mcp"
+  },
+  "environment": {
+    "python": "3.11",
+    "dependencies": "requirements.txt"
+  },
+  "deployment": {
+    "transport": "http",
+    "port": 8000,
+    "log_level": "INFO",
+    "env": {
+      "R2R_BASE_URL": "${R2R_BASE_URL}",
+      "R2R_API_KEY": "${R2R_API_KEY}",
+      "FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER": "true",
+      "DEBUG_LOGGING": "${DEBUG_LOGGING:-false}"
+    }
+  }
+}
