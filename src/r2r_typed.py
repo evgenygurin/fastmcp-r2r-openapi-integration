@@ -27,7 +27,6 @@ from typing import Any, Literal, TypedDict, cast
 
 import httpx
 
-
 # ============================================================================
 # REQUEST TYPES - TypedDicts for API parameters
 # ============================================================================
