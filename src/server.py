@@ -36,7 +36,7 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
 
-# Import pipeline components (after FastMCP imports)
+# Import pipeline components and typed client
 from src.pipelines import (
     Pipeline,
     pipeline_llm_analyze,
@@ -44,6 +44,7 @@ from src.pipelines import (
     pipeline_search_and_analyze,
     sample_structured_output,
 )
+from src.r2r_typed import R2RTypedClient
 
 # Import from experimental parser if available (faster, stateless, better serverless)
 try:
@@ -151,6 +152,9 @@ _client = httpx.AsyncClient(
     timeout=30.0,
     follow_redirects=True,
 )
+
+# Create typed R2R client wrapper (best of both worlds: types + serverless)
+r2r = R2RTypedClient(_client)
 
 logger.info(f"Initializing R2R MCP Server with base URL: {_r2r_base_url}")
 logger.info(f"OpenAPI spec URL: {_r2r_openapi_url}")
@@ -545,28 +549,21 @@ async def enhanced_search(
         await ctx.report_progress(progress=0, total=100)
 
     try:
-        # Prepare search
-        search_payload = {
-            "query": query,
-            "search_settings": {
-                "limit": limit,
-                "use_hybrid_search": search_type == "hybrid",
-                "use_semantic_search": search_type in ["semantic", "hybrid"],
-            },
-        }
-
         if ctx:
-            await ctx.debug(f"Search settings: {search_payload['search_settings']}")
+            await ctx.debug(f"Search type: {search_type}, limit: {limit}")
             await ctx.report_progress(progress=30, total=100)
 
-        # Execute search
-        response = await _client.post("/v3/retrieval/search", json=search_payload)
-        response.raise_for_status()
+        # Execute typed search (using R2RTypedClient)
+        results = await r2r.search(
+            query=query,
+            limit=limit,
+            use_hybrid_search=search_type == "hybrid",
+            use_semantic_search=search_type in ["semantic", "hybrid"],
+        )
 
         if ctx:
             await ctx.report_progress(progress=80, total=100)
 
-        results = response.json()
         result_count = len(results.get("results", {}).get("chunk_search_results", []))
 
         if ctx:
@@ -610,11 +607,8 @@ async def analyze_search_results(
     try:
         await ctx.info(f"🧠 Analyzing search results for: '{query}'")
 
-        # Step 1: Search R2R
-        search_payload = {"query": query, "search_settings": {"limit": limit}}
-        response = await _client.post("/v3/retrieval/search", json=search_payload)
-        response.raise_for_status()
-        results = response.json()
+        # Step 1: Search R2R (using typed client)
+        results = await r2r.search(query=query, limit=limit)
 
         # Step 2: Format results for LLM analysis
         chunks = results.get("results", {}).get("chunk_search_results", [])
