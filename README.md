@@ -248,9 +248,26 @@ curl -o openapi.json http://localhost:7272/openapi.json
 
 ## Полезные ссылки
 
+### Документация
+
 - [FastMCP Documentation](https://gofastmcp.com)
 - [R2R Documentation](https://r2r-docs.sciphi.ai/)
 - [Model Context Protocol](https://modelcontextprotocol.io)
+
+### Внутренняя документация
+
+- **[R2R ↔ FastMCP Integration Analysis](./docs/R2R_FASTMCP_INTEGRATION.md)** - Комплексный анализ интеграции:
+  - Архитектурная совместимость (4-layer model)
+  - Функциональные пересечения
+  - Возможности перехода (migration paths)
+  - Симбиоз: лучшие практики
+  - Production patterns
+  - Практические примеры
+
+- **[FastMCP Architecture](./docs/fastmcp/09-layered-architecture.md)** - Многослойная архитектура FastMCP приложений
+- **[R2R Documentation Hub](./docs/r2r/README.md)** - 8 разделов R2R documentation
+- **[FastMCP Documentation Hub](./docs/fastmcp/README.md)** - 8 разделов FastMCP documentation
+- **[Claude Code Documentation Hub](./docs/claude_code/README.md)** - 13 разделов Claude Code documentation
 
 ## Changelog
 
