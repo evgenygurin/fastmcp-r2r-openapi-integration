@@ -37,14 +37,27 @@ from dotenv import load_dotenv
 from fastmcp import Context, FastMCP
 
 # Import pipeline components and typed client
-from .pipelines import (
-    Pipeline,
-    pipeline_llm_analyze,
-    pipeline_llm_summarize,
-    pipeline_search_and_analyze,
-    sample_structured_output,
-)
-from .r2r_typed import R2RTypedClient
+# Use conditional imports for FastMCP Cloud and local compatibility
+try:
+    # Try relative imports first (works when running as module: python -m src.server)
+    from .pipelines import (
+        Pipeline,
+        pipeline_llm_analyze,
+        pipeline_llm_summarize,
+        pipeline_search_and_analyze,
+        sample_structured_output,
+    )
+    from .r2r_typed import R2RTypedClient
+except ImportError:
+    # Fallback to absolute imports (works with fastmcp CLI and FastMCP Cloud)
+    from pipelines import (  # type: ignore[import-not-found]
+        Pipeline,
+        pipeline_llm_analyze,
+        pipeline_llm_summarize,
+        pipeline_search_and_analyze,
+        sample_structured_output,
+    )
+    from r2r_typed import R2RTypedClient  # type: ignore[import-not-found]
 
 # Import from experimental parser if available (faster, stateless, better serverless)
 try:
