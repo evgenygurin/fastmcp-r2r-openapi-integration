@@ -252,6 +252,10 @@ curl -o openapi.json http://localhost:7272/openapi.json
 - [R2R Documentation](https://r2r-docs.sciphi.ai/)
 - [Model Context Protocol](https://modelcontextprotocol.io)
 
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md) for version history and release notes.
+
 ## Лицензия
 
 MIT

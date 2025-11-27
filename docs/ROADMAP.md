@@ -18,13 +18,28 @@ This roadmap outlines the development path to make our FastMCP R2R server produc
 - ✅ 2 Static Resources (server/info, server/routes)
 - ✅ 3 Resource Templates (documents, collections, search with RFC 6570)
 - ✅ 2 Prompts (rag_query, document_analysis)
-- ✅ 2 Enhanced Tools (enhanced_search, analyze_search_results)
+- ✅ 6 Tools total:
+  - ✅ 2 Enhanced Tools (enhanced_search, analyze_search_results)
+  - ✅ 4 Pipeline Tools (research_pipeline, comparative_analysis, extract_structured_data, generate_followup_questions)
 
 ### FastMCP Features Used
 - ✅ Context integration (logging, progress, sampling)
-- ✅ LLM sampling in tools
-- ✅ Resource annotations
+- ✅ LLM sampling in tools (ctx.sample)
+- ✅ Resource annotations (readOnlyHint, idempotentHint)
 - ✅ Error handling with context
+- ✅ 7 ctx.sample patterns (see pipelines.py):
+  - ✅ Basic generation
+  - ✅ System prompt & role-based responses
+  - ✅ Structured output (JSON/markdown)
+  - ✅ Multi-turn conversation
+  - ✅ Retry logic with exponential backoff
+  - ✅ LLM analysis of results
+  - ✅ Executive summarization
+- ✅ 4 Pipeline composition patterns:
+  - ✅ Pipeline (basic add_step → execute)
+  - ✅ ConditionalPipeline (conditional execution)
+  - ✅ pipeline_with_fallback (primary/fallback)
+  - ✅ cached_pipeline_step (caching with TTL)
 
 ---
 
@@ -1065,4 +1080,3 @@ This roadmap is based on extensive R2R RAG analysis with:
 - Focus on production-ready features and real-world patterns
 
 Update this document as features are implemented and new requirements emerge.
-
