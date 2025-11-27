@@ -1,3 +1,5 @@
+[← Back to Documentation Index](./README.md)
+
 # Enhanced R2R MCP Server Features
 
 This document describes the custom enhancements added to the R2R MCP server beyond the auto-generated OpenAPI components.
@@ -637,3 +639,7 @@ Based on study via R2R MCP search:
 - Dynamic Bearer authentication
 - Experimental parser support
 - Custom server info resources
+
+---
+
+[← Previous: Patterns Guide](./03-PATTERNS.md) | [Next: R2R Client Guide →](./05-R2R-CLIENT.md)

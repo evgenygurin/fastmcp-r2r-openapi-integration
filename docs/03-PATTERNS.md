@@ -1,3 +1,5 @@
+[← Back to Documentation Index](./README.md)
+
 # FastMCP Pipelines & ctx.sample Patterns
 
 **Based on R2R RAG analysis with 20 sources per query**
@@ -871,3 +873,6 @@ async def search_and_analyze(query: str, ctx: Context) -> dict:
 
 **Total Implementation:** ~900 lines of production-ready pipeline patterns
 
+---
+
+[← Previous: Architecture Guide](./02-ARCHITECTURE.md) | [Next: Features Guide →](./04-FEATURES.md)

@@ -1,3 +1,5 @@
+[← Back to Documentation Index](./README.md)
+
 # R2R MCP Server Development Roadmap
 
 **Based on R2R RAG analysis (max_tokens=4000, 20-25 sources per query)**
@@ -1080,3 +1082,7 @@ This roadmap is based on extensive R2R RAG analysis with:
 - Focus on production-ready features and real-world patterns
 
 Update this document as features are implemented and new requirements emerge.
+
+---
+
+[← Previous: Deployment Guide](./06-DEPLOYMENT.md) | [Back to Index →](./README.md)

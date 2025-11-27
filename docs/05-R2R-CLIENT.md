@@ -1,3 +1,5 @@
+[← Back to Documentation Index](./README.md)
+
 # R2R Client vs httpx: Comprehensive Analysis
 
 **Should we use R2R Python SDK (R2RClient) instead of direct HTTP calls?**
@@ -1130,3 +1132,7 @@ async def search(
 **Версия:** 1.0
 **Последнее обновление:** 2025-11-27
 **Статус:** Recommendation - KEEP httpx approach
+
+---
+
+[← Previous: Features Guide](./04-FEATURES.md) | [Next: Deployment Guide →](./06-DEPLOYMENT.md)

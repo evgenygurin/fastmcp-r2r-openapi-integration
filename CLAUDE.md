@@ -8,10 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Компоненты
 
-1. **Документация** (docs/) - Русскоязычные руководства:
-   - **R2R v3** - Production RAG система (8 разделов)
-   - **FastMCP 2.x** - Pythonic MCP фреймворк (8 разделов)
-   - **Claude Code 1.0.58+** - AI CLI от Anthropic (13 разделов)
+1. **Документация** (docs/) - Унифицированное руководство (7 разделов):
+   - **01-QUICKSTART.md** - Быстрый старт за 5 минут
+   - **02-ARCHITECTURE.md** - Архитектура и core concepts
+   - **03-PATTERNS.md** - ctx.sample и pipeline patterns
+   - **04-FEATURES.md** - Custom MCP components
+   - **05-R2R-CLIENT.md** - Type-safe R2R integration
+   - **06-DEPLOYMENT.md** - Production deployment
+   - **07-ROADMAP.md** - Development priorities
 
 2. **MCP Сервер** (src/) - Production FastMCP implementation:
    - **server.py** - Auto-generated MCP components from R2R OpenAPI
@@ -49,9 +53,15 @@ fastapi-r2r-openapi-integration/
 │                                  # - Pipeline composition (4 класса)
 │                                  # - Caching, retry, fallback
 ├── docs/                          # 📚 Документация
-│   ├── r2r/                       # 8 разделов R2R (01-08-*.md)
-│   ├── fastmcp/                   # 8 разделов FastMCP (01-08-*.md)
-│   └── claude_code/               # 13 разделов Claude Code (01-13-*.md)
+│   ├── README.md                  # Навигационный hub
+│   ├── 01-QUICKSTART.md           # Быстрый старт (5 минут)
+│   ├── 02-ARCHITECTURE.md         # Core concepts & patterns
+│   ├── 03-PATTERNS.md             # ctx.sample & pipelines
+│   ├── 04-FEATURES.md             # Custom MCP components
+│   ├── 05-R2R-CLIENT.md           # Type-safe integration
+│   ├── 06-DEPLOYMENT.md           # Production deployment
+│   ├── 07-ROADMAP.md              # Development priorities
+│   └── REORGANIZATION_PLAN.md     # Reorganization plan
 ├── .claude/                       # ⚙️ Claude Code Integration
 │   ├── scripts/                   # Модульная CLI для R2R API
 │   │   ├── r2r                    # Main dispatcher
@@ -215,16 +225,16 @@ ra "msg"     # r2r agent
 ```bash
 # Поиск по содержимому (ВСЕГДА используй rg вместо grep)
 rg "search term" docs/
-rg "API endpoint" docs/r2r/
-rg "decorator" docs/fastmcp/
+rg "DynamicBearerAuth" docs/
+rg "ctx.sample" docs/
 
 # Поиск файлов (ВСЕГДА используй fd вместо find)
 fd -e md . docs/
 fd "README" docs/
 
 # Статистика
-fd -e md . docs | wc -l           # Количество файлов
-du -sh docs/r2r docs/fastmcp docs/claude_code
+fd -e md . docs | wc -l           # Количество файлов (9)
+du -sh docs/                       # Общий размер (~200KB)
 ```
 
 ## 🏗️ Архитектура
@@ -579,11 +589,13 @@ fd -e md authentication docs/
 
 ### Добавление нового раздела документации
 
-1. Определи следующий номер: `fd -e md . docs/r2r/ | sort`
-2. Создай файл: `docs/r2r/09-new-section.md`
-3. Скопируй структуру из похожего раздела
-4. Обнови `docs/r2r/README.md` - добавь в table of contents
-5. Коммит: `git commit -m "docs(r2r): add section 09 - new topic"`
+1. Определи следующий номер: `ls docs/*.md | grep -E '^[0-9]{2}-' | sort`
+2. Создай файл: `docs/08-NEW-SECTION.md` (следующий номер)
+3. Добавь навигацию:
+   - В начало: `[← Back to Documentation Index](./README.md)`
+   - В конец: Previous/Next ссылки
+4. Обнови `docs/README.md` - добавь в table of contents
+5. Коммит: `git commit -m "docs: add section 08 - new topic"`
 
 ### Обновление существующего раздела
 
@@ -636,8 +648,8 @@ EOF
 
 **Решение:** Используй относительные пути от текущей директории:
 ```markdown
-[R2R Overview](./01-installation-and-setup.md)  # ✅ Правильно
-[R2R Overview](/docs/r2r/01-...)                # ❌ Не работает в GitHub
+[Quick Start](./01-QUICKSTART.md)    # ✅ Правильно
+[Quick Start](/docs/01-QUICKSTART)   # ❌ Не работает в GitHub
 ```
 
 **Проблема:** Inconsistent нумерация файлов
@@ -645,8 +657,8 @@ EOF
 **Решение:**
 ```bash
 # Проверь последовательность
-fd -e md . docs/r2r/ | sort
-# Должно быть: 01, 02, 03, ..., 08 без пропусков
+ls docs/*.md | grep -E '^docs/[0-9]{2}-' | sort
+# Должно быть: 01, 02, 03, ..., 07 без пропусков
 ```
 
 ## 📚 Ссылки на важные файлы
@@ -694,10 +706,15 @@ fd -e md . docs/r2r/ | sort
 - `.claude/hooks/SessionStart/` - API health check
 
 ### Документация
-- `docs/r2r/README.md` - R2R index (8 разделов)
-- `docs/fastmcp/README.md` - FastMCP index (8 разделов)
-- `docs/claude_code/README.md` - Claude Code index (13 разделов)
-- `docs/claude_code/SUMMARY.md` - Quick summary
+- `docs/README.md` - Навигационный hub
+- `docs/01-QUICKSTART.md` - Быстрый старт (5 минут)
+- `docs/02-ARCHITECTURE.md` - DynamicBearerAuth, ctx.sample, pipelines, OpenAPI
+- `docs/03-PATTERNS.md` - Advanced patterns (ctx.sample, pipelines)
+- `docs/04-FEATURES.md` - Custom MCP components
+- `docs/05-R2R-CLIENT.md` - Type-safe R2R integration (httpx vs SDK)
+- `docs/06-DEPLOYMENT.md` - FastMCP Cloud, Docker
+- `docs/07-ROADMAP.md` - Development priorities
+- `docs/REORGANIZATION_PLAN.md` - Documentation reorganization plan
 
 ## 🎯 Ключевые принципы
 

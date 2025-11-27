@@ -1,3 +1,5 @@
+[← Back to Documentation Index](./README.md)
+
 # Deployment Guide
 
 ## 🚀 FastMCP Cloud Deployment
@@ -140,3 +142,7 @@ tail -f /tmp/mcp_server.log
 ### Timeout ошибки
 - Увеличьте R2R_TIMEOUT (например, до 60.0 или 120.0)
 - Проверьте сетевое соединение до R2R API
+
+---
+
+[← Previous: R2R Client Guide](./05-R2R-CLIENT.md) | [Next: Roadmap →](./07-ROADMAP.md)
