@@ -251,7 +251,7 @@ class R2RTypedClient:
         response = await self._client.post("/v3/retrieval/search", json=payload)
         response.raise_for_status()
 
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def rag(
         self,
@@ -304,7 +304,7 @@ class R2RTypedClient:
         response = await self._client.post("/v3/retrieval/rag", json=payload)
         response.raise_for_status()
 
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def agent(
         self,
@@ -364,7 +364,7 @@ class R2RTypedClient:
         response = await self._client.post("/v3/retrieval/agent", json=payload)
         response.raise_for_status()
 
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     # ========================================================================
     # DOCUMENT METHODS - Upload, retrieve, delete
@@ -418,7 +418,7 @@ class R2RTypedClient:
             raise ValueError("Either file_path or content must be provided")
 
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def get_document(self, document_id: str) -> DocumentResponse:
         """Retrieve document metadata by ID.
@@ -435,7 +435,7 @@ class R2RTypedClient:
         """
         response = await self._client.get(f"/v3/documents/{document_id}")
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def delete_document(self, document_id: str) -> dict[str, str]:
         """Delete document from R2R.
@@ -451,7 +451,7 @@ class R2RTypedClient:
         """
         response = await self._client.delete(f"/v3/documents/{document_id}")
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def list_documents(
         self, limit: int = 100, offset: int = 0
@@ -474,7 +474,7 @@ class R2RTypedClient:
             "/v3/documents", params={"limit": limit, "offset": offset}
         )
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     # ========================================================================
     # COLLECTION METHODS - Create, manage, query
@@ -506,7 +506,7 @@ class R2RTypedClient:
 
         response = await self._client.post("/v3/collections", json=payload)
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def list_collections(
         self, limit: int = 100, offset: int = 0
@@ -529,7 +529,7 @@ class R2RTypedClient:
             "/v3/collections", params={"limit": limit, "offset": offset}
         )
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     async def get_collection(self, collection_id: str) -> CollectionResponse:
         """Get collection details.
@@ -546,7 +546,32 @@ class R2RTypedClient:
         """
         response = await self._client.get(f"/v3/collections/{collection_id}")
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
+
+    async def get_collection_documents(
+        self, collection_id: str, limit: int = 100, offset: int = 0
+    ) -> dict[str, Any]:
+        """Get documents in a collection.
+
+        Args:
+            collection_id: Collection UUID
+            limit: Maximum documents to return (default: 100)
+            offset: Pagination offset (default: 0)
+
+        Returns:
+            Response with documents list
+
+        Example:
+            docs = await r2r.get_collection_documents("uuid-here", limit=50)
+            for doc in docs.get("results", []):
+                print(doc["title"])
+        """
+        response = await self._client.get(
+            f"/v3/collections/{collection_id}/documents",
+            params={"limit": limit, "offset": offset},
+        )
+        response.raise_for_status()
+        return response.json()  # type: ignore[no-any-return]
 
     # ========================================================================
     # UTILITY METHODS - Health, info, etc.
@@ -564,7 +589,7 @@ class R2RTypedClient:
         """
         response = await self._client.get("/health")
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
     # ========================================================================
     # ADVANCED: Low-level HTTP access
@@ -602,7 +627,7 @@ class R2RTypedClient:
             method, path, json=json, params=params, **kwargs
         )
         response.raise_for_status()
-        return response.json()
+        return response.json()  # type: ignore[no-any-return]
 
 
 # ============================================================================
@@ -624,7 +649,9 @@ def format_search_results(response: SearchResponse, limit: int | None = None) ->
         results = await r2r.search(query="AI")
         print(format_search_results(results, limit=3))
     """
-    chunks: list[ChunkResult] = response.get("results", {}).get("chunk_search_results", [])  # type: ignore
+    chunks: list[ChunkResult] = response.get("results", {}).get(
+        "chunk_search_results", []
+    )  # type: ignore
 
     if not chunks:
         return "No results found"
@@ -633,9 +660,9 @@ def format_search_results(response: SearchResponse, limit: int | None = None) ->
     for i, chunk in enumerate(chunks[:limit] if limit else chunks):
         formatted.append(f"""
 Result {i + 1}:
-  Score: {chunk.get('score', 0):.3f}
-  Text: {chunk.get('text', '')[:200]}...
-  Document: {chunk.get('document_id', 'N/A')}
+  Score: {chunk.get("score", 0):.3f}
+  Text: {chunk.get("text", "")[:200]}...
+  Document: {chunk.get("document_id", "N/A")}
 """)
 
     return "\n".join(formatted)

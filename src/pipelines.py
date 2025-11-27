@@ -21,6 +21,22 @@ from typing import Any
 
 from fastmcp import Context
 
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+
+def extract_text(response: Any) -> str:
+    """Safely extract text from sampling response.
+
+    ctx.sample() returns response with content that can be Text, Image, or Audio.
+    In practice, for text-based sampling, it always returns TextContent.
+    This helper provides type-safe text extraction.
+    """
+    return response.text  # type: ignore[union-attr]
+
+
 # ============================================================================
 # PATTERN 1: Advanced ctx.sample Usage
 # ============================================================================
@@ -33,13 +49,11 @@ async def sample_basic_generation(ctx: Context, prompt: str) -> str:
         result = await sample_basic_generation(ctx, "Explain quantum computing")
     """
     response = await ctx.sample(prompt)
-    return response.text
+    return extract_text(response)
 
 
 async def sample_with_system_prompt(
-    ctx: Context,
-    user_message: str,
-    system_role: str = "expert data analyst"
+    ctx: Context, user_message: str, system_role: str = "expert data analyst"
 ) -> str:
     """Sampling with system prompt for role-based responses.
 
@@ -54,15 +68,13 @@ async def sample_with_system_prompt(
         messages=user_message,
         system_prompt=f"You are an {system_role}. Provide detailed, accurate analysis.",
         temperature=0.3,  # Lower for more focused responses
-        max_tokens=1000
+        max_tokens=1000,
     )
-    return response.text
+    return extract_text(response)
 
 
 async def sample_structured_output(
-    ctx: Context,
-    data: dict,
-    output_format: str = "json"
+    ctx: Context, data: dict, output_format: str = "json"
 ) -> dict:
     """Request structured output from LLM (JSON, markdown, etc.).
 
@@ -82,7 +94,7 @@ Please structure your response as valid {output_format}."""
     response = await ctx.sample(
         messages=prompt,
         temperature=0.2,  # Very low for structured output
-        max_tokens=2000
+        max_tokens=2000,
     )
 
     # Parse JSON if requested
@@ -97,8 +109,7 @@ Please structure your response as valid {output_format}."""
 
 
 async def sample_multi_turn_conversation(
-    ctx: Context,
-    conversation_history: list[dict]
+    ctx: Context, conversation_history: list[dict]
 ) -> str:
     """Multi-turn conversation using message history.
 
@@ -116,20 +127,12 @@ async def sample_multi_turn_conversation(
     # Convert to sampling messages format
     messages = [msg["content"] for msg in conversation_history]
 
-    response = await ctx.sample(
-        messages=messages,
-        temperature=0.7,
-        max_tokens=1500
-    )
+    response = await ctx.sample(messages=messages, temperature=0.7, max_tokens=1500)
 
-    return response.text
+    return extract_text(response)
 
 
-async def sample_with_retry(
-    ctx: Context,
-    prompt: str,
-    max_retries: int = 3
-) -> str:
+async def sample_with_retry(ctx: Context, prompt: str, max_retries: int = 3) -> str:
     """Sampling with retry logic for robustness.
 
     Example:
@@ -140,13 +143,11 @@ async def sample_with_retry(
             await ctx.debug(f"Sampling attempt {attempt + 1}/{max_retries}")
 
             response = await ctx.sample(
-                messages=prompt,
-                temperature=0.5,
-                max_tokens=1000
+                messages=prompt, temperature=0.5, max_tokens=1000
             )
 
             await ctx.debug(f"✓ Sampling successful on attempt {attempt + 1}")
-            return response.text
+            return extract_text(response)
 
         except Exception as e:
             await ctx.error(f"Sampling failed on attempt {attempt + 1}: {e}")
@@ -155,7 +156,7 @@ async def sample_with_retry(
                 raise
 
             # Exponential backoff
-            await asyncio.sleep(2 ** attempt)
+            await asyncio.sleep(2**attempt)
 
     return ""  # Should never reach here
 
@@ -184,12 +185,7 @@ class Pipeline:
         self.steps: list[dict] = []
         self.results: dict[str, Any] = {}
 
-    def add_step(
-        self,
-        name: str,
-        func: Callable,
-        **kwargs
-    ) -> "Pipeline":
+    def add_step(self, name: str, func: Callable, **kwargs) -> "Pipeline":
         """Add a step to the pipeline.
 
         Args:
@@ -197,11 +193,7 @@ class Pipeline:
             func: Async function to execute
             **kwargs: Arguments to pass to function
         """
-        self.steps.append({
-            "name": name,
-            "func": func,
-            "kwargs": kwargs
-        })
+        self.steps.append({"name": name, "func": func, "kwargs": kwargs})
         return self
 
     async def execute(self) -> dict[str, Any]:
@@ -255,9 +247,7 @@ class Pipeline:
 
 
 async def pipeline_search_and_analyze(
-    query: str,
-    ctx: Context | None = None,
-    previous_results: dict | None = None
+    query: str, ctx: Context | None = None, previous_results: dict | None = None
 ) -> dict:
     """Pipeline step: Search documents.
 
@@ -272,15 +262,14 @@ async def pipeline_search_and_analyze(
         "results": [
             {"id": "1", "text": "Sample result 1"},
             {"id": "2", "text": "Sample result 2"},
-        ]
+        ],
     }
 
     return results
 
 
 async def pipeline_llm_analyze(
-    ctx: Context | None = None,
-    previous_results: dict | None = None
+    ctx: Context | None = None, previous_results: dict | None = None
 ) -> dict:
     """Pipeline step: Analyze search results using LLM sampling.
 
@@ -298,8 +287,7 @@ async def pipeline_llm_analyze(
 
     # Prepare analysis prompt
     results_text = "\n\n".join([
-        f"Result {i + 1}: {r['text']}"
-        for i, r in enumerate(search_results["results"])
+        f"Result {i + 1}: {r['text']}" for i, r in enumerate(search_results["results"])
     ])
 
     prompt = f"""Analyze the following search results and provide:
@@ -307,7 +295,7 @@ async def pipeline_llm_analyze(
 2. Main insights
 3. Recommended follow-up questions
 
-Search Query: {search_results['query']}
+Search Query: {search_results["query"]}
 
 Results:
 {results_text}
@@ -319,22 +307,18 @@ Please provide a structured analysis."""
         messages=prompt,
         system_prompt="You are an expert data analyst specializing in information synthesis.",
         temperature=0.4,
-        max_tokens=1500
+        max_tokens=1500,
     )
 
     analysis = response.text
 
     await ctx.info(f"✓ Analysis complete: {len(analysis)} characters")
 
-    return {
-        "analysis": analysis,
-        "timestamp": datetime.utcnow().isoformat()
-    }
+    return {"analysis": analysis, "timestamp": datetime.utcnow().isoformat()}
 
 
 async def pipeline_llm_summarize(
-    ctx: Context | None = None,
-    previous_results: dict | None = None
+    ctx: Context | None = None, previous_results: dict | None = None
 ) -> dict:
     """Pipeline step: Summarize analysis using LLM.
 
@@ -356,11 +340,7 @@ async def pipeline_llm_summarize(
 
 Focus on the most important insights and actionable recommendations."""
 
-    response = await ctx.sample(
-        messages=prompt,
-        temperature=0.3,
-        max_tokens=300
-    )
+    response = await ctx.sample(messages=prompt, temperature=0.3, max_tokens=300)
 
     summary = response.text
 
@@ -369,7 +349,7 @@ Focus on the most important insights and actionable recommendations."""
     return {
         "summary": summary,
         "full_analysis": analysis,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
@@ -379,8 +359,7 @@ Focus on the most important insights and actionable recommendations."""
 
 
 async def pipeline_parallel_analysis(
-    data: list[dict],
-    ctx: Context | None = None
+    data: list[dict], ctx: Context | None = None
 ) -> list[dict]:
     """Process multiple items in parallel using LLM sampling.
 
@@ -401,16 +380,16 @@ async def pipeline_parallel_analysis(
 
         prompt = f"Analyze this content and extract key points:\n\n{item['text']}"
 
-        response = await ctx.sample(
-            messages=prompt,
-            temperature=0.3,
-            max_tokens=500
-        ) if ctx else None
+        response = (
+            await ctx.sample(messages=prompt, temperature=0.3, max_tokens=500)
+            if ctx
+            else None
+        )
 
         return {
             "id": item.get("id", idx),
             "analysis": response.text if response else "No analysis (no context)",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     # Process all items in parallel
@@ -418,10 +397,7 @@ async def pipeline_parallel_analysis(
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # Filter out exceptions
-    successful_results = [
-        r for r in results
-        if not isinstance(r, Exception)
-    ]
+    successful_results = [r for r in results if not isinstance(r, Exception)]
 
     if ctx:
         await ctx.info(f"✓ Completed {len(successful_results)}/{len(data)} items")
@@ -450,11 +426,7 @@ class ConditionalPipeline:
         self.results: dict[str, Any] = {}
 
     def add_step(
-        self,
-        name: str,
-        func: Callable,
-        condition: Callable | None = None,
-        **kwargs
+        self, name: str, func: Callable, condition: Callable | None = None, **kwargs
     ) -> "ConditionalPipeline":
         """Add a conditional step.
 
@@ -468,7 +440,7 @@ class ConditionalPipeline:
             "name": name,
             "func": func,
             "condition": condition,
-            "kwargs": kwargs
+            "kwargs": kwargs,
         })
         return self
 
@@ -516,7 +488,7 @@ async def pipeline_with_fallback(
     primary_func: Callable,
     fallback_func: Callable,
     ctx: Context | None = None,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """Execute function with fallback on error.
 
@@ -571,7 +543,7 @@ async def cached_pipeline_step(
     func: callable,
     ttl_seconds: int = 300,
     ctx: Context | None = None,
-    **kwargs
+    **kwargs,
 ) -> Any:
     """Execute pipeline step with caching.
 
@@ -629,8 +601,9 @@ async def example_complete_pipeline(ctx: Context) -> dict:
     pipeline = Pipeline(ctx)
 
     result = await (
-        pipeline
-        .add_step("search", pipeline_search_and_analyze, query="machine learning")
+        pipeline.add_step(
+            "search", pipeline_search_and_analyze, query="machine learning"
+        )
         .add_step("analyze", pipeline_llm_analyze)
         .add_step("summarize", pipeline_llm_summarize)
         .execute()

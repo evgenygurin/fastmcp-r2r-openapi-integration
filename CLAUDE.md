@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 2. **MCP Сервер** (src/) - Production FastMCP implementation:
    - **server.py** - Auto-generated MCP components from R2R OpenAPI
+   - **r2r_typed.py** - Type-safe wrapper around httpx for R2R API
    - **pipelines.py** - Advanced ctx.sample patterns and tool composition
    - Supports stdio (Claude Desktop) and HTTP (development) transports
 
@@ -35,10 +36,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 fastapi-r2r-openapi-integration/
 ├── src/                           # 🐍 Python MCP Server
 │   ├── __init__.py
-│   ├── server.py                  # Main entrypoint (973 строки)
+│   ├── server.py                  # Main entrypoint (970 строк)
 │   │                              # - Auto-generation from OpenAPI
 │   │                              # - DynamicBearerAuth (request-time API key)
 │   │                              # - 3 resource templates, 2 prompts, 6 tools
+│   ├── r2r_typed.py               # Type-safe R2R client (661 строка)
+│   │                              # - TypedDicts for requests/responses
+│   │                              # - 13 typed methods (search, rag, agent, etc.)
+│   │                              # - Maintains DynamicBearerAuth compatibility
 │   └── pipelines.py               # Advanced patterns (663 строки)
 │                                  # - ctx.sample patterns (7 типов)
 │                                  # - Pipeline composition (4 класса)
@@ -282,6 +287,44 @@ results = await (
     .execute()
 )
 ```
+
+**R2R Typed Client Architecture (r2r_typed.py):**
+
+Type-safe wrapper around httpx для улучшения developer experience при сохранении DynamicBearerAuth.
+
+**Преимущества над raw httpx:**
+- ✅ Type hints и IDE autocomplete
+- ✅ TypedDicts для requests/responses
+- ✅ Меньше boilerplate кода
+- ✅ Сохраняет DynamicBearerAuth (serverless compatible)
+
+**Преимущества над R2R Python SDK:**
+- ✅ Request-time authentication (работает в serverless)
+- ✅ Полный контроль над HTTP запросами
+- ✅ OpenAPI auto-generation compatibility
+- ✅ Минимальные зависимости
+
+Компоненты:
+- **13 TypedDicts** для requests: `SearchRequest`, `RAGRequest`, `AgentRequest`, etc.
+- **13 TypedDicts** для responses: `SearchResponse`, `RAGResponse`, `AgentResponse`, etc.
+- **13 typed методов**: `search()`, `rag()`, `agent()`, `create_document()`, `get_document()`, `list_documents()`, `delete_document()`, `create_collection()`, `list_collections()`, `get_collection()`, `get_collection_documents()`, `health()`, `request()`
+- **2 helper функции**: `format_search_results()`, `extract_citations()`
+
+Паттерн использования:
+```python
+from src.r2r_typed import R2RTypedClient
+
+# Инициализация с DynamicBearerAuth
+_client = httpx.AsyncClient(auth=DynamicBearerAuth(), base_url=R2R_BASE_URL)
+r2r = R2RTypedClient(_client)
+
+# Type-safe вызовы с autocomplete
+results = await r2r.search(query="machine learning", limit=10)
+answer = await r2r.rag(query="What is RAG?", max_tokens=4000)
+response = await r2r.agent(message="Analyze this", mode="research")
+```
+
+**Важно:** `response.json()` возвращает `Any`, поэтому используем `# type: ignore[no-any-return]` вместо `cast()` - честный подход без runtime overhead.
 
 ### Документация - три независимых раздела
 
@@ -611,12 +654,22 @@ fd -e md . docs/r2r/ | sort
 ### Python MCP Server
 - `src/server.py:75-110` - DynamicBearerAuth (КРИТИЧНО для serverless)
 - `src/server.py:121-145` - Route mapping rules (порядок важен!)
+- `src/server.py:170` - R2RTypedClient инициализация
 - `src/server.py:214-248` - Custom resources (`r2r://server/info`, `r2r://server/routes`)
 - `src/server.py:328-432` - Resource templates (3 шт)
 - `src/server.py:439-519` - Prompts (2 шт)
 - `src/server.py:526-663` - Enhanced tools (2 базовых)
 - `src/server.py:670-964` - Pipeline tools (4 advanced)
-- `src/pipelines.py:28-160` - ctx.sample patterns (7 типов)
+- `src/r2r_typed.py:30-110` - TypedDicts для requests (SearchRequest, RAGRequest, AgentRequest, etc.)
+- `src/r2r_typed.py:115-168` - TypedDicts для responses (SearchResponse, RAGResponse, AgentResponse, etc.)
+- `src/r2r_typed.py:174-199` - R2RTypedClient class definition
+- `src/r2r_typed.py:204-368` - Retrieval methods (search, rag, agent)
+- `src/r2r_typed.py:373-478` - Document methods (create, get, list, delete)
+- `src/r2r_typed.py:483-550` - Collection methods (create, list, get, get_documents)
+- `src/r2r_typed.py:555-606` - Utility & low-level methods (health, request)
+- `src/r2r_typed.py:613-661` - Helper functions (format_search_results, extract_citations)
+- `src/pipelines.py:30-38` - extract_text() helper для response.text
+- `src/pipelines.py:46-160` - ctx.sample patterns (7 типов)
 - `src/pipelines.py:167-248` - Pipeline base class
 - `src/pipelines.py:256-373` - LLM-powered pipeline steps
 - `pyproject.toml:25-35` - Ruff configuration
@@ -651,27 +704,29 @@ fd -e md . docs/r2r/ | sort
 ### Для Python кода (src/)
 1. **DynamicBearerAuth is CRITICAL** - читай API_KEY при каждом запросе, НЕ при импорте
 2. **Async everywhere** - все I/O операции async/await (httpx.AsyncClient)
-3. **Context optional** - всегда `ctx: Context | None = None` и проверяй `if ctx:`
-4. **Type hints обязательны** - все публичные функции должны иметь type annotations
-5. **Ruff compliance** - line length 88, trailing commas, Python 3.10+ syntax (`|` вместо `Union`)
-6. **Minimal dependencies** - только fastmcp, httpx, python-dotenv
+3. **Use R2RTypedClient** - предпочитай `r2r.search()` вместо `_client.post("/v3/retrieval/search")` для type safety
+4. **Context optional** - всегда `ctx: Context | None = None` и проверяй `if ctx:`
+5. **Type hints обязательны** - все публичные функции должны иметь type annotations
+6. **Ruff compliance** - line length 88, trailing commas, Python 3.10+ syntax (`|` вместо `Union`)
+7. **Honest type ignores** - используй `# type: ignore[no-any-return]` вместо `cast()` для `response.json()`
+8. **Minimal dependencies** - только fastmcp, httpx, python-dotenv
 
 ### Для документации (docs/)
-7. **Русский + English** - текст на русском, код/термины/API на английском
-8. **Эмодзи в заголовках** - часть стиля, не удаляй
-9. **Консистентность** - следуй существующему стилю во всех файлах
-10. **Нумерация файлов** - 01-NN-section-name.md для последовательности
+9. **Русский + English** - текст на русском, код/термины/API на английском
+10. **Эмодзи в заголовках** - часть стиля, не удаляй
+11. **Консистентность** - следуй существующему стилю во всех файлах
+12. **Нумерация файлов** - 01-NN-section-name.md для последовательности
 
 ### Для R2R Integration (bash scripts)
-11. **Vanilla strategy only** - hyde и rag_fusion не работают (см. .claude/docs/SEARCH_STRATEGIES.md)
-12. **jq for JSON** - избегает проблем с экранированием и валидностью
-13. **Research mode** - предпочтительнее RAG mode для сложных запросов
-14. **Hybrid search** - включен по умолчанию (use_hybrid_search: true)
+13. **Vanilla strategy only** - hyde и rag_fusion не работают (см. .claude/docs/SEARCH_STRATEGIES.md)
+14. **jq for JSON** - избегает проблем с экранированием и валидностью
+15. **Research mode** - предпочтительнее RAG mode для сложных запросов
+16. **Hybrid search** - включен по умолчанию (use_hybrid_search: true)
 
 ### Общие
-15. **Современные инструменты** - rg вместо grep, fd вместо find, bat вместо cat
-16. **Одна строка коммитов** - без подписей Co-Authored-By, краткие описания
-17. **Read before Edit** - всегда читай файл перед редактированием
+17. **Современные инструменты** - rg вместо grep, fd вместо find, bat вместо cat
+18. **Одна строка коммитов** - без подписей Co-Authored-By, краткие описания
+19. **Read before Edit** - всегда читай файл перед редактированием
 
 ## 🔬 Типичные сценарии разработки
 

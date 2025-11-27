@@ -26,9 +26,12 @@ Environment variables (see .env.example):
 
 For more information, see the project README and workspace rules.
 """
+import os
+
+# Enable new OpenAPI parser FIRST - before any imports
+os.environ["FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER"] = "true"
 
 import logging
-import os
 from datetime import datetime
 from typing import Any
 
@@ -337,6 +340,45 @@ def _get_route_map_description(idx: int) -> str:
     return descriptions[idx] if idx < len(descriptions) else "Custom mapping rule"
 
 
+@mcp.resource("r2r://server/diagnostics")
+def get_diagnostics() -> dict[str, Any]:
+    """Diagnostic information for troubleshooting MCP server.
+
+    Returns environment variables and authentication status to help
+    diagnose connection issues with R2R API.
+    """
+    api_key = os.getenv("R2R_API_KEY", "")
+
+    # Mask API key (show first 20 chars only)
+    masked_key = f"{api_key[:20]}..." if len(api_key) > 20 else "NOT_SET"
+
+    return {
+        "environment": {
+            "R2R_BASE_URL": os.getenv("R2R_BASE_URL", "NOT_SET"),
+            "R2R_API_KEY": masked_key,
+            "R2R_API_KEY_LENGTH": len(api_key),
+            "R2R_OPENAPI_URL": os.getenv("R2R_OPENAPI_URL", "NOT_SET"),
+            "DEBUG_LOGGING": os.getenv("DEBUG_LOGGING", "NOT_SET"),
+            "FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER": os.getenv(
+                "FASTMCP_EXPERIMENTAL_ENABLE_NEW_OPENAPI_PARSER", "NOT_SET"
+            ),
+        },
+        "authentication": {
+            "api_key_configured": bool(api_key),
+            "api_key_from_env": "R2R_API_KEY" in os.environ,
+        },
+        "client_config": {
+            "base_url": _r2r_base_url,
+            "timeout": 30.0,
+            "auth_handler": "DynamicBearerAuth (request-time)",
+        },
+        "note": (
+            "If api_key_configured=false, check that Claude Code passes "
+            "env vars to MCP process. Restart MCP server after updating config."
+        ),
+    }
+
+
 # ============================================================================
 # ENHANCED R2R RESOURCES - Direct access to R2R data
 # ============================================================================
@@ -355,11 +397,10 @@ async def get_document_resource(document_id: str, ctx: Context) -> dict[str, Any
     """
     try:
         await ctx.info(f"Fetching document: {document_id}")
-        response = await _client.get(f"/v3/documents/{document_id}")
-        response.raise_for_status()
+        document = await r2r.get_document(document_id)
 
         await ctx.debug(f"Successfully fetched document {document_id}")
-        return response.json()
+        return document
 
     except httpx.HTTPError as e:
         await ctx.error(f"Failed to fetch document {document_id}: {e}")
@@ -380,14 +421,10 @@ async def get_collection_summary(collection_id: str, ctx: Context) -> dict[str, 
         await ctx.info(f"Fetching collection summary: {collection_id}")
 
         # Get collection info
-        response = await _client.get(f"/v3/collections/{collection_id}")
-        response.raise_for_status()
-        collection_data = response.json()
+        collection_data = await r2r.get_collection(collection_id)
 
         # Get documents in collection
-        docs_response = await _client.get(f"/v3/collections/{collection_id}/documents")
-        docs_response.raise_for_status()
-        documents = docs_response.json()
+        documents = await r2r.get_collection_documents(collection_id)
 
         return {
             "collection_id": collection_id,
@@ -423,11 +460,7 @@ async def search_knowledge_base(
         await ctx.info(f"Searching R2R: '{query}' (limit={limit})")
 
     try:
-        search_payload = {"query": query, "search_settings": {"limit": limit}}
-
-        response = await _client.post("/v3/retrieval/search", json=search_payload)
-        response.raise_for_status()
-        results = response.json()
+        results = await r2r.search(query=query, limit=limit)
 
         if ctx:
             await ctx.debug(
@@ -676,12 +709,12 @@ Provide:
 
 @mcp.tool(
     description="Multi-step research pipeline: search → analyze → summarize",
-    tags={"r2r", "pipeline", "research"}
+    tags={"r2r", "pipeline", "research"},
 )
 async def research_pipeline(
     query: str,
     analysis_depth: str = "standard",  # "quick", "standard", "deep"
-    ctx: Context | None = None
+    ctx: Context | None = None,
 ) -> dict:
     """
     Execute a complete research pipeline combining search, LLM analysis, and summarization.
@@ -709,7 +742,7 @@ async def research_pipeline(
     depth_config = {
         "quick": {"search_limit": 5, "max_tokens": 500},
         "standard": {"search_limit": 10, "max_tokens": 1000},
-        "deep": {"search_limit": 20, "max_tokens": 2000}
+        "deep": {"search_limit": 20, "max_tokens": 2000},
     }
 
     depth_config.get(analysis_depth, depth_config["standard"])
@@ -719,8 +752,7 @@ async def research_pipeline(
 
     # Execute pipeline steps
     results = await (
-        pipeline
-        .add_step("search", pipeline_search_and_analyze, query=query)
+        pipeline.add_step("search", pipeline_search_and_analyze, query=query)
         .add_step("analyze", pipeline_llm_analyze)
         .add_step("summarize", pipeline_llm_summarize)
         .execute()
@@ -735,18 +767,18 @@ async def research_pipeline(
         "summary": results.get("summarize", {}).get("summary"),
         "full_analysis": results.get("analyze", {}).get("analysis"),
         "search_results_count": len(results.get("search", {}).get("results", [])),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
 @mcp.tool(
     description="Comparative analysis of multiple queries using LLM sampling",
-    tags={"r2r", "pipeline", "comparison"}
+    tags={"r2r", "pipeline", "comparison"},
 )
 async def comparative_analysis(
     queries: list[str],
     comparison_criteria: list[str] | None = None,
-    ctx: Context | None = None
+    ctx: Context | None = None,
 ) -> dict:
     """
     Compare multiple search queries and provide comparative insights.
@@ -781,9 +813,7 @@ async def comparative_analysis(
         await ctx.info(f"Searching: {query}")
 
         # In real implementation, this would call R2R search API
-        search_results[query] = {
-            "results": [{"text": f"Sample result for: {query}"}]
-        }
+        search_results[query] = {"results": [{"text": f"Sample result for: {query}"}]}
 
         await ctx.report_progress(idx + 1, len(queries) + 1)
 
@@ -816,7 +846,7 @@ Provide a structured comparison including:
         messages=prompt,
         system_prompt="You are an expert analyst specializing in comparative analysis and synthesis.",
         temperature=0.4,
-        max_tokens=2000
+        max_tokens=2000,
     )
 
     await ctx.report_progress(len(queries) + 1, len(queries) + 1)
@@ -826,18 +856,16 @@ Provide a structured comparison including:
         "queries": queries,
         "comparison": response.text,
         "criteria": comparison_criteria,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
 @mcp.tool(
     description="Extract structured data from documents using LLM sampling",
-    tags={"r2r", "extraction", "structured"}
+    tags={"r2r", "extraction", "structured"},
 )
 async def extract_structured_data(
-    document_id: str,
-    schema: dict,
-    ctx: Context | None = None
+    document_id: str, schema: dict, ctx: Context | None = None
 ) -> dict:
     """
     Extract structured data from a document according to a provided schema.
@@ -884,9 +912,9 @@ async def extract_structured_data(
         data={
             "document_id": document_id,
             "content": document_content,
-            "schema": schema
+            "schema": schema,
         },
-        output_format="json"
+        output_format="json",
     )
 
     await ctx.info("✅ Extraction complete")
@@ -895,18 +923,16 @@ async def extract_structured_data(
         "document_id": document_id,
         "schema": schema,
         "extracted_data": result,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
 @mcp.tool(
     description="Generate follow-up questions based on search results",
-    tags={"r2r", "questions", "exploration"}
+    tags={"r2r", "questions", "exploration"},
 )
 async def generate_followup_questions(
-    initial_query: str,
-    num_questions: int = 5,
-    ctx: Context | None = None
+    initial_query: str, num_questions: int = 5, ctx: Context | None = None
 ) -> dict:
     """
     Generate intelligent follow-up questions using LLM sampling.
@@ -949,7 +975,7 @@ Format as a numbered list."""
         messages=prompt,
         system_prompt="You are an expert at generating insightful questions for research and exploration.",
         temperature=0.7,  # Higher for creative questions
-        max_tokens=800
+        max_tokens=800,
     )
 
     await ctx.info("✅ Questions generated")
@@ -958,7 +984,7 @@ Format as a numbered list."""
     questions_text = response.text
     questions = [
         line.strip()
-        for line in questions_text.split('\n')
+        for line in questions_text.split("\n")
         if line.strip() and any(line.strip().startswith(f"{i}.") for i in range(1, 20))
     ]
 
@@ -966,7 +992,7 @@ Format as a numbered list."""
         "initial_query": initial_query,
         "follow_up_questions": questions,
         "count": len(questions),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
